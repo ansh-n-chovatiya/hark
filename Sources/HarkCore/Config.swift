@@ -37,6 +37,9 @@ public struct Config: Codable, Sendable, Equatable {
     public var hotkey: String
     /// The key tapped to type a command. Empty turns typing by key off.
     public var typeKey: String
+    /// The key held to dictate: what is said is typed into whatever text box is focused. Empty
+    /// turns dictation off.
+    public var dictationKey: String
     public var searchFolders: [String]
     public var repos: [String]
     public var aliases: [String: String]
@@ -58,6 +61,7 @@ public struct Config: Codable, Sendable, Equatable {
     public init(
         hotkey: String = "rightOption",
         typeKey: String = "rightCommand",
+        dictationKey: String = "",
         searchFolders: [String] = [],
         repos: [String] = [],
         aliases: [String: String] = [:],
@@ -73,6 +77,7 @@ public struct Config: Codable, Sendable, Equatable {
     ) {
         self.hotkey = hotkey
         self.typeKey = typeKey
+        self.dictationKey = dictationKey
         self.searchFolders = searchFolders
         self.repos = repos
         self.aliases = aliases
@@ -93,6 +98,7 @@ public struct Config: Codable, Sendable, Equatable {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         hotkey = try values.decodeIfPresent(String.self, forKey: .hotkey) ?? defaults.hotkey
         typeKey = try values.decodeIfPresent(String.self, forKey: .typeKey) ?? defaults.typeKey
+        dictationKey = try values.decodeIfPresent(String.self, forKey: .dictationKey) ?? defaults.dictationKey
         searchFolders = try values.decodeIfPresent([String].self, forKey: .searchFolders) ?? defaults.searchFolders
         repos = try values.decodeIfPresent([String].self, forKey: .repos) ?? defaults.repos
         aliases = try values.decodeIfPresent([String: String].self, forKey: .aliases) ?? defaults.aliases

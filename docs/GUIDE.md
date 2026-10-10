@@ -82,6 +82,13 @@ account can read. Clipboard text is never sent to any model.
 bar opens where you type the same commands. It is a different key from the one you hold to speak,
 so the two never get mixed up.
 
+**Dictation.** Choose a key under Settings, General, "Key to hold for dictation" (it is off until you
+do). Click where you want text, hold the key, say what you want written, and let go: Hark types your
+words where the cursor is, in any app, using the speech model on your Mac, so there is no limit on how
+much you dictate. It removes "um" and "uh", flattens line breaks and capitalises the first letter, and
+that is all: no model rewrites your words. It only presses letter keys: never Return, so nothing is
+sent or run, and it does not use the clipboard. It refuses when a password field is selected.
+
 ## Safety
 
 - Hark cannot delete, move, rename or overwrite files, and cannot empty the trash.

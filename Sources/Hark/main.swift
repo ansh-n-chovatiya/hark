@@ -49,6 +49,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var pipeline: Pipeline?
     private var hotkey: Hotkey?
     private var typeHotkey: Hotkey?
+    private var dictationHotkey: Hotkey?
+    private var isDictating = false
+    private var dictationPressedAt: ContinuousClock.Instant?
+    private var dictationWatch: Task<Void, Never>?
     private var clipboardWatcher: ClipboardWatcher?
     private var clipSource: ClipSource?
     private var settings: SettingsWindow?
@@ -211,7 +215,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             logger.notice("key ready: \(key, privacy: .public)")
             startTypeKey()
             let typing = config.typeKey.isEmpty ? "" : ", tap \(Self.spokenName(ofKey: config.typeKey)) to type"
-            menuBar?.setStatus("Hold \(Self.spokenName(ofKey: key)) to speak\(typing)")
+            let dictating = config.dictationKey.isEmpty
+                ? "" : ", hold \(Self.spokenName(ofKey: config.dictationKey)) to dictate"
+            menuBar?.setStatus("Hold \(Self.spokenName(ofKey: key)) to speak\(typing)\(dictating)")
         } catch {
             logger.error("key not ready: \(error.localizedDescription, privacy: .public)")
             menuBar?.setStatus(error.localizedDescription)
@@ -222,6 +228,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Typing has its own key so that it can never be mistaken for the start of speaking. Used
     /// inside a shortcut the key does nothing here, because Hotkey reports that as a cancel.
     private func startTypeKey() {
+        startDictationKey()
         typeHotkey?.stop()
         typeHotkey = nil
         guard !config.typeKey.isEmpty, config.typeKey != config.hotkey else { return }
@@ -253,7 +260,107 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return key.uppercased()
     }
 
+    /// Dictation has its own key too: holding it types what is said instead of acting on it.
+    private func startDictationKey() {
+        dictationHotkey?.stop()
+        dictationHotkey = nil
+        let key = config.dictationKey
+        guard !key.isEmpty, key != config.hotkey, key != config.typeKey else { return }
+        let hotkey = Hotkey(
+            key: key,
+            onDown: { [weak self] in Self.onMain { self?.dictationDown() } },
+            onUp: { [weak self] in Self.onMain { self?.dictationUp() } },
+            onCancel: { [weak self] in Self.onMain { self?.dictationCancelled() } })
+        do {
+            try hotkey.start()
+            dictationHotkey = hotkey
+        } catch {
+            logger.error("dictation key not ready: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    /// Nobody dictates for longer than this; a hold past it means the release was missed.
+    private static let longestDictation: Duration = .seconds(120)
+
+    private func dictationDown() {
+        // One recording at a time: the speech model is shared with commands.
+        guard !isHolding, !isDictating else { return }
+        isDictating = true
+        dictationPressedAt = clock.now
+        dictationWatch?.cancel()
+        dictationWatch = Task { [weak self] in await self?.watchDictation() }
+        commandBar.hide()
+        overlay.show(.listening)
+        capture = Task {
+            do {
+                try await transcriber.start()
+                return true
+            } catch {
+                overlay.show(.error(error.localizedDescription))
+                return false
+            }
+        }
+    }
+
+    private func watchDictation() async {
+        let started = clock.now
+        while !Task.isCancelled, isDictating {
+            try? await Task.sleep(for: .milliseconds(150))
+            guard !Task.isCancelled, isDictating else { return }
+            if Self.isPhysicallyUp(config.dictationKey) {
+                dictationUp()
+                return
+            }
+            if clock.now - started > Self.longestDictation {
+                dictationCancelled()
+                overlay.show(.error("Dictation stopped. Hold the key again to continue."))
+                return
+            }
+        }
+    }
+
+    private func dictationUp() {
+        guard isDictating else { return }
+        isDictating = false
+        dictationWatch?.cancel()
+        if let dictationPressedAt, clock.now - dictationPressedAt < Self.tapLimit {
+            dictationCancelled()
+            return
+        }
+        overlay.show(.working(""))
+        Task {
+            do {
+                guard let heard = try await wordsFromRecording(timeout: .seconds(20)) else {
+                    overlay.show(.error("I could not hear that. Please try again."))
+                    return
+                }
+                let text = Dictation.tidy(heard)
+                guard !text.isEmpty else {
+                    overlay.show(.hidden)
+                    return
+                }
+                try await TextTyper.type(text)
+                let words = text.split(separator: " ").count
+                logger.notice("dictated \(words, privacy: .public) words")
+                overlay.show(.result("Typed \(words) \(words == 1 ? "word" : "words")"))
+            } catch {
+                overlay.show(.error(error.localizedDescription))
+            }
+        }
+    }
+
+    private func dictationCancelled() {
+        isDictating = false
+        dictationWatch?.cancel()
+        overlay.show(.hidden)
+        Task {
+            guard await capture?.value == true else { return }
+            _ = try? await transcriber.finish()
+        }
+    }
+
     private func keyDown() {
+        guard !isDictating else { return }
         isHolding = true
         lastHeard = ""
         pressedAt = clock.now
@@ -356,14 +463,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// The words of the recording just finished, or nil if they did not arrive in time. An empty
     /// string means nothing was said.
-    private func wordsFromRecording() async throws -> String? {
+    private func wordsFromRecording(timeout: Duration = longestWaitForWords) async throws -> String? {
         try await withThrowingTaskGroup(of: String?.self) { group in
             group.addTask { [capture, transcriber] in
                 guard await capture?.value == true else { return "" }
                 return try await transcriber.finish()
             }
             group.addTask {
-                try await Task.sleep(for: Self.longestWaitForWords)
+                try await Task.sleep(for: timeout)
                 return nil
             }
             defer { group.cancelAll() }

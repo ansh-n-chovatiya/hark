@@ -7,6 +7,8 @@ struct GeneralTab: View {
         ("rightOption", "Right Option (recommended)"),
         ("rightCommand", "Right Command"),
         ("rightControl", "Right Control"),
+        ("leftControl", "Left Control"),
+        ("rightShift", "Right Shift"),
         ("f13", "F13"),
         ("f14", "F14"),
         ("f15", "F15"),
@@ -17,6 +19,7 @@ struct GeneralTab: View {
             Section {
                 holdKeyPicker
                 typingKeyPicker
+                dictationKeyPicker
                 loginToggle
             }
             FolderList(
@@ -51,6 +54,14 @@ struct GeneralTab: View {
             title: "Key to tap for typing", keys: Self.keys + [("", "Off")],
             helper: "Tap it once to open a bar where you type a command.",
             problem: model.keyProblem(.typing), selection: key(.typing))
+    }
+
+    private var dictationKeyPicker: some View {
+        KeyPicker(
+            title: "Key to hold for dictation", keys: Self.keys + [("", "Off")],
+            helper: "Hold it and speak: what you say is typed where your cursor is, in any app. "
+                + "It types only your own words and never presses Return.",
+            problem: model.keyProblem(.dictation), selection: key(.dictation))
     }
 
     private var loginToggle: some View {

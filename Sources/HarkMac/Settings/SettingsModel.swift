@@ -6,8 +6,8 @@ enum AddressField: Sendable {
     case online, onThisMac
 }
 
-enum KeyField: Sendable {
-    case hold, typing
+enum KeyField: Sendable, CaseIterable {
+    case hold, typing, dictation
 }
 
 /// An address the user typed that cannot be used. It is kept so the field still shows it, with
@@ -124,28 +124,33 @@ enum ModelLookup: Equatable {
 
     func keyProblem(_ field: KeyField) -> String? {
         guard rejectedKeys[field] != nil else { return nil }
-        switch field {
-        case .hold: return "Choose a different key from the one you tap for typing."
-        case .typing: return "Choose a different key from the one you hold to speak."
-        }
+        return "Choose a key that is not already used to speak, type or dictate."
     }
 
     func setKey(_ key: String, for field: KeyField) {
-        let other: KeyField = field == .hold ? .typing : .hold
-        guard key.isEmpty || key != savedKey(other) else {
+        let others = KeyField.allCases.filter { $0 != field }
+        guard key.isEmpty || !others.contains(where: { savedKey($0) == key }) else {
             rejectedKeys[field] = key
             return
         }
         rejectedKeys[field] = nil
         save(key, for: field)
-        if let waiting = rejectedKeys[other], waiting != key {
-            rejectedKeys[other] = nil
-            save(waiting, for: other)
+        // A key that was waiting because this one held its place can now be saved.
+        for other in others {
+            if let waiting = rejectedKeys[other], waiting != key,
+               !KeyField.allCases.contains(where: { $0 != other && savedKey($0) == waiting }) {
+                rejectedKeys[other] = nil
+                save(waiting, for: other)
+            }
         }
     }
 
     private func savedKey(_ field: KeyField) -> String {
-        field == .hold ? config.hotkey : config.typeKey
+        switch field {
+        case .hold: config.hotkey
+        case .typing: config.typeKey
+        case .dictation: config.dictationKey
+        }
     }
 
     private func save(_ key: String, for field: KeyField) {
@@ -153,6 +158,7 @@ enum ModelLookup: Equatable {
             switch field {
             case .hold: config.hotkey = key
             case .typing: config.typeKey = key
+            case .dictation: config.dictationKey = key
             }
         }
     }

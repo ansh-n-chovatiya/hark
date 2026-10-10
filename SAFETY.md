@@ -58,6 +58,9 @@ These can be put back, usually with "undo that".
 - Move and resize a window. Open a web page you saved under a name.
 - Copy the name, address or path of something that is open, so you can paste it.
 - Paste something you copied earlier.
+- Type what you said, when you hold the dictation key you chose. Only your own words are typed, as
+  letters: never Return, a shortcut or any other key, and never into a password field. It does not
+  touch the clipboard.
 - Run a routine you named outright, when none of its steps is marked as destructive. What a
   routine did is not put back by "undo that".
 
