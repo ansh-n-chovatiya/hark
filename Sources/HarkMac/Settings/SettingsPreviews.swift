@@ -217,6 +217,9 @@ extension SettingsModel {
                 at: Date(timeIntervalSinceNow: -row.minutesAgo * 60), raw: row.raw, verb: nil, outcome: row.outcome,
                 transcribeMs: 0, parseMs: 0, matchMs: 0, actMs: 0, totalMs: row.seconds * 1000)
             entry.summary = row.summary
+            // Two of them were answered by a model, one of them a backup.
+            if row.raw == "open the backend project" { entry.model = "Claude Code (Haiku)" }
+            if row.raw == "make it purple" { entry.model = "Online model" }
             return entry
         }
     }
