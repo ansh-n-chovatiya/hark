@@ -348,6 +348,38 @@ public actor Pipeline {
 
     // MARK: Lists and "this"
 
+    /// "Copy the address of this tab", "copy the path of this file": puts it on the clipboard. Only for the item in
+    /// front, so nothing is guessed.
+    private func copyFromFront(_ command: Command, timings: inout Timings) async -> Outcome? {
+        guard command.verb == .open, command.query.hasPrefix("copy "), command.kinds.count == 1,
+              let kind = command.kinds.first, Self.refersToTheFront(command.raw) else { return nil }
+        let words = Set(command.query.split(separator: " ").map(String.init))
+        let what: String
+        if !words.isDisjoint(with: ["address", "url", "link"]) {
+            what = "address"
+        } else if words.contains("path") {
+            what = "path"
+        } else if !words.isDisjoint(with: ["name", "title"]) {
+            what = "name"
+        } else {
+            return nil
+        }
+        guard let item = await frontItem(of: kind) else { return nil }
+        let value: String? = switch what {
+        case "address": item.payload["url"]
+        case "path": item.payload["path"]
+        default: item.title
+        }
+        guard let value, !value.isEmpty else { return .notUnderstood("\(item.title) has no \(what) to copy.") }
+        timings.verb = "copy"
+        if dryRun { return .done("Would: Copy the \(what) of \(item.title)") }
+        await MainActor.run {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(value, forType: .string)
+        }
+        return .done("Copied the \(what) of \(item.title)")
+    }
+
     /// A file or folder that clearly matches, opened in the app that clearly matches. It uses the same tool the
     /// model does, which refuses scripts, installers and programs and never creates, moves or deletes anything.
     /// Nil when either part is unsure, so the words may still mean something else (a tab in Chrome, say).
@@ -794,6 +826,9 @@ public actor Pipeline {
 
         // "Hide everything except Warp": hiding can be put back, so it is done by rule.
         if command.verb == .hide, let done = await hideAllExcept(command, timings: &timings) { return done }
+
+        // "Copy the address of this tab": the one in front.
+        if let done = await copyFromFront(command, timings: &timings) { return done }
 
         // "Open Slack and Linear", "quit Slack and Linear": a short list of things that each match clearly.
         if let done = await actOnList(command, timings: &timings) { return done }

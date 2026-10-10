@@ -8,6 +8,8 @@ behaviour.
 
 - "Open the standup file in TextEdit" and "open the projects folder in VS Code" by rule when the file or folder and
   the app each match clearly.
+- "Copy the address of this tab" (also name or path of this window or file) by rule, for the item in front. Not yet
+  seen working on a live Chrome tab.
 - Rules-only evaluation: 47 of 55 (85 percent); CI now fails below 84.
 
 ## 0.2.2 — 2026-10-10
