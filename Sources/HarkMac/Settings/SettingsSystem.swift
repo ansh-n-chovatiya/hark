@@ -12,6 +12,8 @@ struct SettingsSystem: Sendable {
     var history: @Sendable () -> [Timings]
     var reports: @Sendable () -> [WrongLog.Entry]
     var report: @Sendable (WrongLog.Entry) -> Void
+    /// The models a service offers for this address and key.
+    var listModels: @Sendable (String, String) async throws -> [String]
 
     static func live(log: TimingLog, wrongLog: WrongLog) -> SettingsSystem {
         SettingsSystem(
@@ -27,7 +29,8 @@ struct SettingsSystem: Sendable {
             },
             history: { log.all() },
             reports: { wrongLog.all() },
-            report: { wrongLog.append($0) }
+            report: { wrongLog.append($0) },
+            listModels: { try await ModelCatalog.models(address: $0, key: $1) }
         )
     }
 }

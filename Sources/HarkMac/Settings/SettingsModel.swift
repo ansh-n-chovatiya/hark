@@ -43,6 +43,12 @@ struct NameRow: Identifiable, Equatable {
     var wasEdited = false
 }
 
+enum ModelLookup: Equatable {
+    case idle, needsKey, looking
+    case found([String])
+    case failed(String)
+}
+
 @MainActor @Observable final class SettingsModel {
     nonisolated static let historyLimit = 300
 
@@ -63,6 +69,7 @@ struct NameRow: Identifiable, Equatable {
     var permissionStatuses: [Permission: PermissionStatus] = [:]
     private(set) var loginItemIsOn = false
     private(set) var loginItemProblem: String?
+    var modelLookup: ModelLookup = .idle
 
     let system: SettingsSystem
     private let onChange: @MainActor (Config) -> Void
@@ -148,6 +155,35 @@ struct NameRow: Identifiable, Equatable {
             case .typing: config.typeKey = key
             }
         }
+    }
+
+    // MARK: Online model list
+
+    /// Asks the online service which models this key can use, so the user picks one by name.
+    func refreshModels() async {
+        let address = config.modelURL
+        let key = config.modelKey
+        // A service that needs a key cannot answer without one; say so instead of a bare error.
+        if key.isEmpty, ModelProvider.matching(address: address)?.needsKey == true {
+            modelLookup = .needsKey
+            return
+        }
+        modelLookup = .looking
+        let list = system.listModels
+        do {
+            let names = try await list(address, key)
+            guard address == config.modelURL, key == config.modelKey else { return }
+            modelLookup = .found(names)
+        } catch {
+            guard address == config.modelURL, key == config.modelKey else { return }
+            modelLookup = .failed(error.localizedDescription)
+        }
+    }
+
+    /// Picking a service fills in its address, so nobody has to know it.
+    func chooseProvider(_ provider: ModelProvider) {
+        setAddress(provider.address, for: .online)
+        modelLookup = .idle
     }
 
     // MARK: Addresses

@@ -68,7 +68,7 @@ extension SettingsModel {
                 Routine(name: "pull all", steps: [Step(shell: "git -C {repo} pull --ff-only", timeout: 60)]),
             ],
             links: ["the task board": "https://tracker.example.com/board"],
-            model: "fast-model, careful-model",
+            model: "careful-model",
             modelURL: "https://models.example.com/v1",
             modelKey: "sample-key-not-real"
         )
@@ -80,13 +80,15 @@ extension SettingsModel {
             setLoginItem: { _ in },
             history: { history },
             reports: { [] },
-            report: { _ in }
+            report: { _ in },
+            listModels: { _, _ in ["careful-model", "fast-model"] }
         )
         let model = SettingsModel(config: config, system: system, onChange: { _ in })
         model.refreshLoginItem()
         model.permissionStatuses = Dictionary(
             uniqueKeysWithValues: Permission.allCases.map { ($0, system.permissionStatus($0)) })
         model.history = history.reversed()
+        model.modelLookup = .found(["careful-model", "fast-model", "quick-model"])
         model.setAddress("models.example.com/v1", for: .online)
         if let stopPort = model.routines.dropFirst().first {
             model.selectRoutine(stopPort.id)
