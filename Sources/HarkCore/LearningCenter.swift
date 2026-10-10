@@ -33,8 +33,21 @@ public struct LearningState: Codable, Sendable, Equatable {
     /// Suggestion id to the time it may be offered again; `distantFuture` means never.
     public var hidden: [String: Date] = [:]
     public var accepted: [Accepted] = []
+    /// Names a model proposed for failed commands, kept only after a dry run showed they work.
+    public var reviewed: [Suggestion] = []
+    public var lastReviewAt: Date?
 
     public init() {}
+
+    // A file from an older version may lack the newer fields; each missing one stays at its default.
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        setupDone = try values.decodeIfPresent(Bool.self, forKey: .setupDone) ?? false
+        hidden = try values.decodeIfPresent([String: Date].self, forKey: .hidden) ?? [:]
+        accepted = try values.decodeIfPresent([Accepted].self, forKey: .accepted) ?? []
+        reviewed = try values.decodeIfPresent([Suggestion].self, forKey: .reviewed) ?? []
+        lastReviewAt = try values.decodeIfPresent(Date.self, forKey: .lastReviewAt)
+    }
 }
 
 public final class LearningStore: Sendable {
@@ -93,21 +106,31 @@ public struct LearningSnapshot: Sendable, Equatable {
 public final class LearningCenter: Sendable {
     public static let notNowFor: TimeInterval = 14 * 24 * 60 * 60
 
+    /// How long after a review before the next one.
+    public static let reviewEvery: TimeInterval = 6 * 60 * 60
+    private static let mostToReview = 12
+
     public let activity: ActivityLog
     private let history: TimingLog
     private let store: LearningStore
+    private let reports: WrongLog?
 
-    public init(activity: ActivityLog, history: TimingLog, store: LearningStore) {
+    public init(activity: ActivityLog, history: TimingLog, store: LearningStore, reports: WrongLog? = nil) {
         self.activity = activity
         self.history = history
         self.store = store
+        self.reports = reports
     }
 
     public func snapshot(config: Config, now: Date = Date()) -> LearningSnapshot {
         let state = store.load()
         let historyEntries = history.all()
+        let known = Set(config.aliases.keys.map(Learner.normalize))
         let made = config.learns
-            ? Learner.suggestions(history: historyEntries, activity: activity.all(), config: config)
+            ? Learner.unique(
+                Learner.suggestions(history: historyEntries, activity: activity.all(), config: config)
+                    + Learner.names(reports: reports?.all() ?? [], config: config)
+                    + state.reviewed.filter { !known.contains($0.said ?? "") })
             : []
         let taken = Set(state.accepted.map(\.id))
         let suggestions = made.filter { suggestion in
@@ -117,6 +140,27 @@ public final class LearningCenter: Sendable {
         return LearningSnapshot(
             suggestions: suggestions, deadEnds: config.learns ? Learner.deadEnds(history: historyEntries) : [],
             accepted: state.accepted)
+    }
+
+    /// The failed commands a model should look at now, or none when review is off or was done lately.
+    public func reviewInput(config: Config, now: Date = Date()) -> [String] {
+        guard config.learns, config.reviewsFailures else { return [] }
+        let state = store.load()
+        if let last = state.lastReviewAt, now.timeIntervalSince(last) < Self.reviewEvery { return [] }
+        let known = Set(config.aliases.keys.map(Learner.normalize))
+        var phrases = Learner.deadEnds(history: history.all()).map(\.phrase)
+        phrases += (reports?.all() ?? []).map { Learner.normalize($0.heard) }
+        var seen = Set<String>()
+        return phrases.filter { !$0.isEmpty && !known.contains($0) && seen.insert($0).inserted }
+            .prefix(Self.mostToReview).map { $0 }
+    }
+
+    /// Keeps what a review found (already shown to work) and notes when it happened.
+    public func saveReview(_ proven: [Suggestion], now: Date = Date()) {
+        store.change { state in
+            state.reviewed = proven
+            state.lastReviewAt = now
+        }
     }
 
     /// Adds what the suggestion describes to `config`, and remembers how to take it back.

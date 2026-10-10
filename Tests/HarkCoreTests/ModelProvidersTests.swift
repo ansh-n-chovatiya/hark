@@ -22,6 +22,11 @@ import Testing
         #expect(ModelList.parse(Data(native.utf8)) == ["gemini-pro"])
     }
 
+    @Test func streamingOnlyAndSpecialistModelsAreNotOffered() {
+        let json = #"{"data":[{"id":"models/gemini-3.8-live-extended-thinking"},{"id":"models/gemini-robotics-er"},{"id":"models/gemini-3.8-flash"}]}"#
+        #expect(ModelList.parse(Data(json.utf8)) == ["gemini-3.8-flash"])
+    }
+
     @Test func anUnreadableAnswerGivesAnEmptyList() {
         #expect(ModelList.parse(Data("not json".utf8)).isEmpty)
         #expect(ModelList.parse(Data("{}".utf8)).isEmpty)

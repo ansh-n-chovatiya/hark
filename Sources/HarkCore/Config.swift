@@ -43,6 +43,9 @@ public struct Config: Codable, Sendable, Equatable {
     /// Whether Hark learns from how the Mac is used: it notes which apps and websites (names only) come
     /// to the front, and offers names, pages and routines. On unless the user turns it off.
     public var learns: Bool
+    /// Lets the model Hark already uses read the commands that failed, to propose names for them. Only
+    /// the failed phrases are sent, and only when `learns` is on.
+    public var reviewsFailures: Bool
     public var searchFolders: [String]
     public var repos: [String]
     public var aliases: [String: String]
@@ -66,6 +69,7 @@ public struct Config: Codable, Sendable, Equatable {
         typeKey: String = "rightCommand",
         dictationKey: String = "",
         learns: Bool = true,
+        reviewsFailures: Bool = true,
         searchFolders: [String] = [],
         repos: [String] = [],
         aliases: [String: String] = [:],
@@ -83,6 +87,7 @@ public struct Config: Codable, Sendable, Equatable {
         self.typeKey = typeKey
         self.dictationKey = dictationKey
         self.learns = learns
+        self.reviewsFailures = reviewsFailures
         self.searchFolders = searchFolders
         self.repos = repos
         self.aliases = aliases
@@ -105,6 +110,7 @@ public struct Config: Codable, Sendable, Equatable {
         typeKey = try values.decodeIfPresent(String.self, forKey: .typeKey) ?? defaults.typeKey
         dictationKey = try values.decodeIfPresent(String.self, forKey: .dictationKey) ?? defaults.dictationKey
         learns = try values.decodeIfPresent(Bool.self, forKey: .learns) ?? defaults.learns
+        reviewsFailures = try values.decodeIfPresent(Bool.self, forKey: .reviewsFailures) ?? defaults.reviewsFailures
         searchFolders = try values.decodeIfPresent([String].self, forKey: .searchFolders) ?? defaults.searchFolders
         repos = try values.decodeIfPresent([String].self, forKey: .repos) ?? defaults.repos
         aliases = try values.decodeIfPresent([String: String].self, forKey: .aliases) ?? defaults.aliases

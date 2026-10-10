@@ -25,7 +25,9 @@ public struct OpenAIChatModel: ChatModel {
         guard let base = URL(string: url), let host = base.host() else { return nil }
         isLocal = ["127.0.0.1", "localhost", "::1"].contains(host)
         guard isLocal || !key.isEmpty else { return nil }
-        let names = models.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        // A name that can never answer (a streaming-only model, say) is left out instead of wasting a request.
+        let names = models.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty && ModelList.canChat($0) }
         guard !names.isEmpty else { return nil }
         endpoint = base.appending(path: "chat/completions")
         self.models = names
@@ -84,14 +86,16 @@ public struct OpenAIChatModel: ChatModel {
             if index == efforts.count - 1 { body["temperature"] = nil }
             do {
                 return try parse(try await post(body))
-            } catch is FieldRejected where index < efforts.count - 1 {
-                continue
+            } catch let rejected as FieldRejected {
+                if index == efforts.count - 1 {
+                    throw ChatModelError(message: "The model service refused the request: \(rejected.detail)")
+                }
             }
         }
         throw ChatModelError(message: "The model refused every setting Hark tried")
     }
 
-    private struct FieldRejected: Error {}
+    private struct FieldRejected: Error { let detail: String }
 
     private func post(_ body: [String: Any]) async throws -> Data {
         var request = URLRequest(url: endpoint, timeoutInterval: timeout)
@@ -118,7 +122,10 @@ public struct OpenAIChatModel: ChatModel {
         guard (200..<300).contains(status) else {
             let detail = errorDetail(data)
             if status == 400, ["reasoning", "thinking", "temperature"].contains(where: detail.lowercased().contains) {
-                throw FieldRejected()
+                throw FieldRejected(detail: detail)
+            }
+            if status == 429 {
+                throw ChatModelError(message: "The online model's quota is used up (error 429). It works again when the quota resets, or choose another model.")
             }
             throw ChatModelError(message: "The model service returned error \(status)\(detail.isEmpty ? "" : ": \(detail)")")
         }

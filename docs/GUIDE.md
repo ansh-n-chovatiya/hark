@@ -87,7 +87,9 @@ Web pages and Routines screens by hand. On the first run it looks for your proje
 that it notices which apps and websites you open together, which sites you visit on many days, and
 commands it misheard that you then said another way, and offers each as a card in Settings, Learning:
 Add, Not now (asks again in two weeks) or Never. It remembers names only, on this Mac, and you can turn
-it off or delete what it noted there. See [SAFETY.md](../SAFETY.md).
+it off or delete what it noted there. When a command fails, the model you set up can also guess what
+you meant; Hark tries the guess out first and shows it only if it works. A "This was wrong" report in
+History that says what you wanted becomes a suggestion too. See [SAFETY.md](../SAFETY.md).
 
 **Dictation.** Choose a key under Settings, General, "Key to hold for dictation" (it is off until you
 do). Click where you want text, hold the key, say what you want written, and let go: Hark types your

@@ -121,6 +121,36 @@ public enum Learner {
         (entry.summary ?? "").localizedCaseInsensitiveContains("does not delete")
     }
 
+    // MARK: Corrections the user reported
+
+    /// "This was wrong" reports that say what was wanted. The user has said outright what the words
+    /// should have meant, so one report is enough.
+    public static func names(reports: [WrongLog.Entry], config: Config) -> [Suggestion] {
+        let known = Set(config.aliases.keys.map(normalize))
+        var made: [String: Suggestion] = [:]
+        for report in reports {
+            let said = normalize(report.heard), meant = normalize(report.wanted)
+            guard !said.isEmpty, !meant.isEmpty, said != meant, !known.contains(said),
+                  wordCount(said) <= mostWordsInACommand, wordCount(meant) <= mostWordsInACommand,
+                  similarity(said, meant) >= 0.3 || sharesAWord(said, meant)
+            else { continue }
+            made[said + ">" + meant] = Suggestion(
+                id: "report:\(said)>\(meant)", kind: .name,
+                title: "When you say \u{201C}\(said)\u{201D}, hear \u{201C}\(meant)\u{201D}",
+                detail: "You told Hark this went wrong and what you wanted.", said: said, meant: meant)
+        }
+        return made.values.sorted { $0.id < $1.id }
+    }
+
+    /// The same words offered by more than one source are offered once.
+    public static func unique(_ suggestions: [Suggestion]) -> [Suggestion] {
+        var seen = Set<String>()
+        return suggestions.filter { suggestion in
+            let key = suggestion.kind == .name ? "\(suggestion.said ?? "")>\(suggestion.meant ?? "")" : suggestion.id
+            return seen.insert(key).inserted
+        }
+    }
+
     // MARK: Web pages
 
     static func pages(activity: [ActivityEvent], config: Config, calendar: Calendar) -> [Suggestion] {

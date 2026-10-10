@@ -31,8 +31,13 @@ public enum ModelList {
     /// Names that are not for chatting. They would never answer a command, so they are not offered.
     private static let notForChat = [
         "embed", "tts", "whisper", "dall-e", "image", "imagen", "veo", "moderation", "audio",
-        "realtime", "transcribe", "aqa", "vision-preview", "rerank",
+        "realtime", "transcribe", "aqa", "vision-preview", "rerank", "live", "bidi", "robotics", "computer-use",
     ]
+
+    /// False for a name that can never answer a command, such as a streaming-only or embedding model.
+    public static func canChat(_ name: String) -> Bool {
+        !notForChat.contains { name.lowercased().contains($0) }
+    }
 
     public static func parse(_ data: Data) -> [String] {
         guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return [] }
@@ -40,7 +45,7 @@ public enum ModelList {
         let rows = (object["data"] as? [[String: Any]]) ?? (object["models"] as? [[String: Any]]) ?? []
         let names = rows.compactMap { ($0["id"] as? String) ?? ($0["name"] as? String) }
             .map { $0.hasPrefix("models/") ? String($0.dropFirst("models/".count)) : $0 }
-            .filter { name in !notForChat.contains { name.lowercased().contains($0) } }
+            .filter(canChat)
         return Array(Set(names)).sorted()
     }
 }

@@ -104,6 +104,16 @@ src, Sites, Workspace) and list the folder names it finds, if you have not set a
 add an action, and a learned routine can only open things. "Delete what Hark has noticed" in the
 Learning tab empties the file.
 
+## What the model reviews
+While learning is on, and unless you turn off "Let the AI model review commands that failed" in
+Settings, Learning, Hark asks the model you set up (the hosted one if you added a key, else the one on
+this Mac) what a command it could not do was probably meant to be. Only the words of those failed
+commands are sent, at most twelve at a time and no more than every six hours: no activity log, no
+clipboard, no names of what is open. The model is given no tools, so it can only answer in words.
+Its answer is read as a short list of plain phrases, anything that looks like a shell command is
+thrown away, Hark tries each one out in a dry run, and only one that works is shown to you. It is
+added only if you tap Add.
+
 ## What this does not protect against
 - An action that is allowed but not what you meant, such as opening the wrong file. The fix is
   "undo that".

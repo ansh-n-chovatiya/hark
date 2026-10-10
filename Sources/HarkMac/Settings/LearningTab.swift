@@ -15,6 +15,14 @@ struct LearningTab: View {
                         + "offers shortcuts. It all stays on this Mac.")
             }
             if model.config.learns {
+                Section {
+                    Toggle("Let the AI model review commands that failed", isOn: Binding(
+                        get: { model.config.reviewsFailures }, set: { model.setReviewsFailures($0) }))
+                    HelperText(
+                        text: "Uses the model you set up under Understanding. Only the words of commands Hark could "
+                            + "not do are sent, which that model has already seen once. Its suggestions are tried "
+                            + "out first and added only if you tap Add.")
+                }
                 findProjects
                 noticed
                 if !model.learned.accepted.isEmpty { learnedForYou }

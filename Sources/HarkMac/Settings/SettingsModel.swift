@@ -172,7 +172,10 @@ enum ModelLookup: Equatable {
     func refreshLearning() async {
         let center = system.learning
         let current = config
-        learned = await Task.detached { center.snapshot(config: current) }.value
+        var snapshot = await Task.detached { center.snapshot(config: current) }.value
+        // A name is only offered once a dry run has shown that it works.
+        snapshot.suggestions = await SuggestionProof.shared.verified(snapshot.suggestions, config: current)
+        learned = snapshot
     }
 
     func acceptSuggestion(_ suggestion: Suggestion) {
@@ -218,6 +221,10 @@ enum ModelLookup: Equatable {
         projectSearchResult = found.projects.isEmpty
             ? "Added \(found.folders.count) folder\(found.folders.count == 1 ? "" : "s")."
             : "Added \(found.projects.count) project\(found.projects.count == 1 ? "" : "s")."
+    }
+
+    func setReviewsFailures(_ on: Bool) {
+        update { $0.reviewsFailures = on }
     }
 
     func setLearns(_ on: Bool) {

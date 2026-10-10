@@ -61,7 +61,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let log = TimingLog(url: Paths.timings)
     private let activityLog = ActivityLog(url: Paths.activity)
     private lazy var learning = LearningCenter(
-        activity: activityLog, history: log, store: LearningStore(url: Paths.learning))
+        activity: activityLog, history: log, store: LearningStore(url: Paths.learning),
+        reports: WrongLog(url: Paths.wrong))
     private var recorder: ActivityRecorder?
     private var suggestionTimer: Timer?
     private var capture: Task<Bool, Never>?
@@ -136,12 +137,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         recorder.start()
         self.recorder = recorder
         let timer = Timer(timeInterval: 30 * 60, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.refreshSuggestionHint() }
+            Task { @MainActor in self?.reviewAndRefresh() }
         }
         RunLoop.main.add(timer, forMode: .common)
         suggestionTimer = timer
         Task {
             try? await Task.sleep(for: .seconds(8))
+            reviewAndRefresh()
+        }
+    }
+
+    /// Lets the model review failed commands when one is due, then updates the menu's count.
+    private func reviewAndRefresh() {
+        let center = learning
+        let current = config
+        Task {
+            await LearningReview.runIfDue(config: current, center: center)
             refreshSuggestionHint()
         }
     }
@@ -150,8 +161,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let center = learning
         let current = config
         Task {
-            let count = await Task.detached { center.snapshot(config: current).suggestions.count }.value
-            menuBar?.setSuggestionCount(count)
+            let found = await Task.detached { center.snapshot(config: current).suggestions }.value
+            let shown = await SuggestionProof.shared.verified(found, config: current)
+            menuBar?.setSuggestionCount(shown.count)
         }
     }
 
@@ -574,6 +586,36 @@ private extension Outcome {
     }
 }
 
+func reviewFailures(save: Bool) async -> Int32 {
+    let config = (try? Config.load(from: Paths.config)) ?? Config()
+    let center = LearningCenter(
+        activity: ActivityLog(url: Paths.activity), history: TimingLog(url: Paths.timings),
+        store: LearningStore(url: Paths.learning), reports: WrongLog(url: Paths.wrong))
+    var phrases = center.reviewInput(config: config, now: .distantFuture)
+    if phrases.isEmpty { phrases = Learner.deadEnds(history: TimingLog(url: Paths.timings).all()).map(\.phrase) }
+    print("failed commands to review: \(phrases.count)")
+    for phrase in phrases { print("  \u{201C}\(phrase)\u{201D}") }
+    guard !phrases.isEmpty else { return 0 }
+    do {
+        let proposed = try await FailureReviewer.ask(phrases: phrases, config: config)
+        print("the model proposed \(proposed.count):")
+        var proven: [Suggestion] = []
+        for suggestion in proposed {
+            let worked = await SuggestionProof.shared.works(suggestion, config: config)
+            print("  \(worked ? "works      " : "no effect  ") \(suggestion.said ?? "") -> \(suggestion.meant ?? "")")
+            if worked { proven.append(suggestion) }
+        }
+        if save {
+            center.saveReview(proven)
+            print("saved \(proven.count)")
+        }
+        return 0
+    } catch {
+        print("the review failed: \(error.localizedDescription)")
+        return 1
+    }
+}
+
 /// Keeps the pill from `--show-dictation` alive while it is on screen.
 private enum Showing { nonisolated(unsafe) static var indicator: AnyObject? }
 
@@ -619,6 +661,19 @@ func runCommandLine(_ flag: String, _ values: [String]) async -> Int32 {
             return 2
         }
         return await callTool(named: values[0], json: values[1])
+    case "--review-failures":
+        // Runs the failed-command review now against the real history and model, and says what each step did.
+        return await reviewFailures(save: values.contains("--save"))
+    case "--proof":
+        guard values.count >= 2 else {
+            print("usage: hark --proof \"<what was said>\" \"<what it means>\"")
+            return 2
+        }
+        let config = (try? Config.load(from: Paths.config)) ?? Config()
+        let suggestion = Suggestion(id: "proof", kind: .name, title: "", detail: "", said: values[0], meant: values[1])
+        let worked = await SuggestionProof.shared.works(suggestion, config: config)
+        print(worked ? "works: Hark would act on \"\(values[0])\" with that name" : "does not work")
+        return worked ? 0 : 1
     case "--show-dictation":
         // Puts the dictation pill on screen for a few seconds, to see it where the real one appears.
         let seconds = number(after: "--seconds", in: values) ?? 6
