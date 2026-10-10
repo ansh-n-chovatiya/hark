@@ -43,7 +43,7 @@ extension SettingsWindow {
     /// The dictation pill in each of its states.
     private static func renderDictationPills(to folder: URL, appearances: [(name: String, appearance: NSAppearance.Name)]) throws {
         let states: [(DictationState, String)] = [
-            (.listening, "listening"), (.typing, "typing"), (.typed(14), "typed"),
+            (.listening, "listening"), (.handsFree, "handsfree"), (.typing, "typing"), (.typed(14), "typed"),
             (.error("A password field is selected, so Hark did not type."), "error"),
         ]
         for (state, label) in states {

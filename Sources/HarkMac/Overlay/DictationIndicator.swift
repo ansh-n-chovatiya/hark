@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 public enum DictationState: Sendable, Equatable {
-    case hidden, listening, typing, typed(Int), error(String)
+    case hidden, listening, handsFree, typing, typed(Int), error(String)
 }
 
 /// A small pill that says dictation is on, with a waveform that follows the voice and a cancel
@@ -12,6 +12,8 @@ public enum DictationState: Sendable, Equatable {
 @MainActor public final class DictationIndicator {
     /// Called when the cancel button is pressed.
     public var onCancel: (() -> Void)?
+    /// Called when the stop button of a hands-free dictation is pressed.
+    public var onFinish: (() -> Void)?
 
     private static let margin: CGFloat = 12
     private static let doneStay: Duration = .milliseconds(1200)
@@ -43,6 +45,7 @@ public enum DictationState: Sendable, Equatable {
         host.sizingOptions = [.intrinsicContentSize]
         panel.contentView = host
         model.onCancel = { [weak self] in self?.onCancel?() }
+        model.onFinish = { [weak self] in self?.onFinish?() }
         moveObserver = NotificationCenter.default.addObserver(
             forName: NSWindow.didMoveNotification, object: panel, queue: .main
         ) { [weak self] _ in
@@ -126,6 +129,7 @@ public enum DictationState: Sendable, Equatable {
 @MainActor @Observable final class DictationModel {
     var state: DictationState = .hidden
     var onCancel: (() -> Void)?
+    var onFinish: (() -> Void)?
 }
 
 struct DictationPill: View {
@@ -152,7 +156,7 @@ struct DictationPill: View {
     }
 
     /// Less room on the right when the cancel button sits there.
-    private var trailing: CGFloat { model.state == .listening ? 8 : 16 }
+    private var trailing: CGFloat { model.state == .listening || model.state == .handsFree ? 8 : 16 }
 
     @ViewBuilder private var content: some View {
         switch model.state {
@@ -162,6 +166,12 @@ struct DictationPill: View {
             LevelBars(animates: !reduceMotion)
                 .frame(width: 52, height: 22)
                 .accessibilityLabel("Dictating")
+            CancelButton { model.onCancel?() }
+        case .handsFree:
+            LevelBars(animates: !reduceMotion)
+                .frame(width: 44, height: 22)
+                .accessibilityLabel("Dictating, hands-free")
+            StopButton { model.onFinish?() }
             CancelButton { model.onCancel?() }
         case .typing:
             ProgressView().controlSize(.small).accessibilityHidden(true)
@@ -183,6 +193,27 @@ struct DictationPill: View {
             .foregroundStyle(.white)
             .lineLimit(3)
             .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+/// Finishes a hands-free dictation and types what was said.
+private struct StopButton: View {
+    let action: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "stop.fill")
+                .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(.white)
+                .frame(width: 24, height: 24)
+                .background(Circle().fill(Color.red.opacity(isHovered ? 1 : 0.85)))
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+        .help("Finish and type")
+        .accessibilityLabel("Finish dictation and type")
     }
 }
 

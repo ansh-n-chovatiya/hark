@@ -52,7 +52,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var typeHotkey: Hotkey?
     private var dictationHotkey: Hotkey?
     private var isDictating = false
-    private var dictationPressedAt: ContinuousClock.Instant?
+    private var taps = DictationTaps()
+    private var tapWindow: Task<Void, Never>?
     private var dictationWatch: Task<Void, Never>?
     private var clipboardWatcher: ClipboardWatcher?
     private var clipSource: ClipSource?
@@ -85,6 +86,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         dictationIndicator.onCancel = { [weak self] in self?.dictationCancelled() }
+        dictationIndicator.onFinish = { [weak self] in self?.finishDictation() }
         menuBar = MenuBar()
         if CommandLine.arguments.contains("--demo-overlay") {
             overlay.runDemo()
@@ -343,11 +345,46 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Nobody dictates for longer than this; a hold past it means the release was missed.
     private static let longestDictation: Duration = .seconds(120)
 
+    /// The dictation key is held (talk while it is down), or tapped twice (hands-free, one tap to finish).
     private func dictationDown() {
+        guard !isHolding else { return }
+        switch taps.keyDown(at: Date()) {
+        case .start:
+            beginDictation()
+        case .becomeHandsFree:
+            tapWindow?.cancel()
+            dictationIndicator.show(.handsFree)
+        case .finish:
+            finishDictation()
+        default:
+            break
+        }
+    }
+
+    private func dictationUp() {
+        switch taps.keyUp(at: Date()) {
+        case .finish:
+            finishDictation()
+        case .wait:
+            // A quick tap: keep listening for a moment, in case a second tap follows.
+            tapWindow?.cancel()
+            tapWindow = Task { [weak self] in
+                try? await Task.sleep(for: .seconds(DictationTaps.doubleTapWindow))
+                guard !Task.isCancelled else { return }
+                self?.tapWindowClosed()
+            }
+        default:
+            break
+        }
+    }
+
+    private func tapWindowClosed() {
+        if taps.windowClosed() == .cancel { dictationCancelled() }
+    }
+
+    private func beginDictation() {
         // One recording at a time: the speech model is shared with commands.
-        guard !isHolding, !isDictating else { return }
         isDictating = true
-        dictationPressedAt = clock.now
         dictationWatch?.cancel()
         dictationWatch = Task { [weak self] in await self?.watchDictation() }
         commandBar.hide()
@@ -369,26 +406,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         while !Task.isCancelled, isDictating {
             try? await Task.sleep(for: .milliseconds(150))
             guard !Task.isCancelled, isDictating else { return }
-            if Self.isPhysicallyUp(config.dictationKey) {
+            // A missed release is only looked for while the key is meant to be held.
+            if taps.mode == .holding, Self.isPhysicallyUp(config.dictationKey) {
                 dictationUp()
                 return
             }
             if clock.now - started > Self.longestDictation {
                 dictationCancelled()
-                dictationIndicator.show(.error("Dictation stopped. Hold the key again to continue."))
+                dictationIndicator.show(.error("Dictation stopped. Start again to continue."))
                 return
             }
         }
     }
 
-    private func dictationUp() {
+    /// Turns what was said into text and types it where the cursor is.
+    private func finishDictation() {
         guard isDictating else { return }
         isDictating = false
+        taps.reset()
+        tapWindow?.cancel()
         dictationWatch?.cancel()
-        if let dictationPressedAt, clock.now - dictationPressedAt < Self.tapLimit {
-            dictationCancelled()
-            return
-        }
         dictationIndicator.show(.typing)
         Task {
             do {
@@ -413,6 +450,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func dictationCancelled() {
         isDictating = false
+        taps.reset()
+        tapWindow?.cancel()
         dictationWatch?.cancel()
         dictationIndicator.show(.hidden)
         Task {
