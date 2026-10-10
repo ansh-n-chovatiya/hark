@@ -20,6 +20,12 @@ public struct CLIChatModel: ChatModel {
         self.model = plain ? model : "haiku"
     }
 
+    /// Starts the tool's process, so the first question finds it ready. Called when the user presses the key.
+    public func warmUp() {
+        let session = CLISession.shared(for: tool, model: model, folder: Self.folder)
+        Task { await session.warmUp() }
+    }
+
     public func reply(to messages: [ChatMessage], tools: [ToolSpec]) async throws -> ChatReply {
         try? FileManager.default.createDirectory(at: Self.folder, withIntermediateDirectories: true)
         // Without tools it is a plain question and answer, as the failed-command review asks.
@@ -27,21 +33,35 @@ public struct CLIChatModel: ChatModel {
             var question = ""
             for case .user(let text) in messages { question = text }
             let system = CLIToolProtocol.extraSystem(from: messages) ?? "Answer briefly."
-            let output = try await CLIProcess.run(
-                tool.path, arguments: arguments(system: system), input: question, timeout: Self.timeout,
-                folder: Self.folder)
-            return ChatReply(text: try Self.answer(from: output), calls: [])
+            return ChatReply(text: try await ask(system: system, prompt: question), calls: [])
         }
         let system = CLIToolProtocol.system(extra: CLIToolProtocol.extraSystem(from: messages))
         let prompt = CLIToolProtocol.prompt(messages: messages, tools: tools)
-        let output = try await CLIProcess.run(
-            tool.path, arguments: arguments(system: system), input: prompt, timeout: Self.timeout,
-            folder: Self.folder)
-        let answer = try Self.answer(from: output)
+        let answer = try await ask(system: system, prompt: prompt)
         guard let reply = CLIToolProtocol.parse(answer, tools: tools) else {
             throw CLIModelError(message: "\(tool.label) gave an answer Hark could not read.")
         }
         return reply
+    }
+
+    /// The answer's text. A running process is used when there is one; if the process cannot be kept running
+    /// (an older or newer version of the tool that does not take messages this way), it is started for this
+    /// question alone, as before.
+    private func ask(system: String, prompt: String) async throws -> String {
+        let session = CLISession.shared(for: tool, model: model, folder: Self.folder)
+        let started = ContinuousClock.now
+        do {
+            return try await session.ask("\(system)\n\n\(prompt)", timeout: Self.timeout)
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            // Only a quick failure means the way of asking does not work; a slow one is the model being slow.
+            guard !Task.isCancelled, ContinuousClock.now - started < .seconds(8) else { throw error }
+            let output = try await CLIProcess.run(
+                tool.path, arguments: arguments(system: system), input: prompt, timeout: Self.timeout,
+                folder: Self.folder)
+            return try Self.answer(from: output)
+        }
     }
 
     /// Claude Code, text only: no tools, no settings files, no extensions, nothing saved.

@@ -104,7 +104,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             await MainActor.run { if let self { self.install(self.config) } }
         }
         commandBar.onSubmit = { [weak self] text in self?.runTyped(text) }
-        menuBar?.onTypeCommand = { [weak self] in self?.commandBar.show() }
+        menuBar?.onTypeCommand = { [weak self] in
+            self?.commandBar.show()
+            if let config = self?.config { ModelWarmUp.start(for: config) }
+        }
         menuBar?.onSettings = { [weak self] in self?.showSettings() }
         menuBar?.onLearning = { [weak self] in self?.showSettings(.learning) }
         overlay.onPick = { [weak self] number in
@@ -483,6 +486,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         holdWatch = Task { [weak self] in await self?.watchHold() }
         commandBar.hide()
         overlay.show(.listening)
+        // An AI tool on the Mac takes a moment to start; the user is speaking for a while, so start it now.
+        ModelWarmUp.start(for: config)
         Task { [pipeline, transcriber] in
             guard let pipeline else { return }
             await pipeline.prepareForCommand()

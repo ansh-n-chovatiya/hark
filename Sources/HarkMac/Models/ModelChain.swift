@@ -240,3 +240,12 @@ public enum ModelSetup {
         return Result(chain: on.isEmpty ? nil : ModelChain(choices: on.map(\.choice), headStart: headStart), local: local)
     }
 }
+
+/// Starts what takes a moment to start, while the user is still speaking.
+public enum ModelWarmUp {
+    public static func start(for config: Config) {
+        for entry in ModelSetup.entries(for: config) where entry.isOn {
+            (entry.choice.model as? CLIChatModel)?.warmUp()
+        }
+    }
+}
