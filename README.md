@@ -140,7 +140,7 @@ A model that fails, for example one out of quota, rests for a few minutes instea
 | Tabs aren't found | **Automation → Hark → Google Chrome** must be on. Tabs work in Chrome only |
 | It misheard names | Wait for the speech model download to finish; add your own words in **Settings → Names** |
 | It did the wrong thing | **Settings → History → "This was wrong"**, and tell us |
-| macOS keeps asking for my password | When it asks to use the "Hark Dev" key or the "model-key" item, choose **Always Allow**. It asks again each time you rebuild from source, because every build is a new program to macOS; the downloaded app does not |
+| macOS keeps asking for my password | When it asks to use the "Hark Dev" signing key (only while building from source) or the "model-key" Keychain item, choose **Always Allow** so it stops asking |
 | I said it and nothing was typed | Dictation types only into a text box. With none selected, your words are copied: paste with ⌘V |
 
 Hark is early software, English-only, and has so far been used on one Mac. Browser tabs and editor windows work with Google Chrome and Visual Studio Code only.
