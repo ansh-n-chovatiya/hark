@@ -14,8 +14,26 @@ public enum AppAction {
     private static let fluff: Set<String> = ["please", "now", "just", "i", "want", "to", "want to", "do", "and", "then"]
     private static let mostWords = 8
 
+    private static let makers: Set<String> = ["open", "create", "make", "start", "add"]
+    private static let articles: Set<String> = ["a", "an", "the", "one"]
+
     public static func request(in transcript: String) -> AppActionRequest? {
         var words = tokens(transcript)
+        // "Open a new window in Chrome", "create a note in Notes": what to do first, then the app after "in".
+        if let lead = words.first, makers.contains(lead), let inIndex = words.lastIndex(of: "in"), inIndex >= 2,
+           inIndex < words.count - 1 {
+            var action = Array(words[1..<inIndex])
+            while let first = action.first, articles.contains(first) { action.removeFirst() }
+            var app = Array(words[(inIndex + 1)...])
+            while let first = app.first, articles.contains(first) { app.removeFirst() }
+            if app.last == "app" || app.last == "application" { app.removeLast() }
+            // Only a clear "make something new": "open the report in Preview" is a file, not an action.
+            let makesSomething = action.first == "new" || (lead != "open" && !action.isEmpty)
+            if makesSomething, !app.isEmpty, app.count <= 3, action.count <= mostWords {
+                let phrase = lead == "open" || action.first == "new" ? action : [lead] + action
+                return AppActionRequest(app: app.joined(separator: " "), action: phrase.joined(separator: " "))
+            }
+        }
         guard let start = starts.first(where: { words.starts(with: $0) }) else { return nil }
         words.removeFirst(start.count)
         guard let split = words.firstIndex(where: joiners.contains), split >= 1, split <= 3 else { return nil }

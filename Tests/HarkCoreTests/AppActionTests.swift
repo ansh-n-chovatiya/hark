@@ -22,6 +22,15 @@ import Testing
         #expect(AppAction.request(in: "open notes app and please make a note")?.action == "make a note")
     }
 
+    @Test func theAppCanComeAfterIn() {
+        #expect(AppAction.request(in: "open a new window in Chrome") == AppActionRequest(app: "chrome", action: "new window"))
+        #expect(AppAction.request(in: "create a new note in Notes") == AppActionRequest(app: "notes", action: "new note"))
+        #expect(AppAction.request(in: "make a note in the Notes app")?.app == "notes")
+        // A file to open in an app is not an action.
+        #expect(AppAction.request(in: "open the standup file in TextEdit") == nil)
+        #expect(AppAction.request(in: "open the report in Preview") == nil)
+    }
+
     @Test func plainOpensAndLongAppNamesAreNotRequests() {
         #expect(AppAction.request(in: "open Notes") == nil)
         #expect(AppAction.request(in: "close Notes and print") == nil)
