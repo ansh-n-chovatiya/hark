@@ -146,14 +146,67 @@ struct UnderstandingTab: View {
     private var modelOnThisMac: some View {
         Section {
             addressField(.onThisMac)
-            SettingsTextField("Model", text: model.config.fallbackModel) { name in
-                model.update { $0.fallbackModel = name.trimmingCharacters(in: .whitespacesAndNewlines) }
-            }
+            localModelRow
+            localStatus
         } header: {
             Text("Model on this Mac")
         } footer: {
-            HelperText(text: "Used when the online model is slow or missing. Leave the model empty to turn this off.")
+            HelperText(text: "Used when the online model is slow or missing. Choose Off to turn this off.")
                 .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        // Looked up again when the address changes, after a short pause so typing is not a request per letter.
+        .task(id: model.config.fallbackModelURL) {
+            try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled else { return }
+            await model.refreshLocalModels()
+        }
+    }
+
+    /// A list of what is installed at that address, or a box to type in when it cannot be read.
+    @ViewBuilder private var localModelRow: some View {
+        if case .found(let names) = model.localLookup {
+            let current = model.config.fallbackModel
+            let missing = !current.isEmpty && !names.contains(current)
+            SettingsSelect(
+                label: "Model",
+                options: (missing ? [SelectOption(value: current, title: current, unavailable: "Not installed")] : [])
+                    + names.map { SelectOption(value: $0, title: $0) }
+                    + [SelectOption(value: "", title: "Off", symbol: "nosign", separatorBefore: true)],
+                selection: Binding(
+                    get: { current },
+                    set: { name in model.update { $0.fallbackModel = name } }))
+        } else {
+            SettingsTextField("Model", text: model.config.fallbackModel) { name in
+                model.update { $0.fallbackModel = name.trimmingCharacters(in: .whitespacesAndNewlines) }
+            }
+        }
+    }
+
+    @ViewBuilder private var localStatus: some View {
+        let current = model.config.fallbackModel
+        switch model.localLookup {
+        case .idle, .needsKey:
+            EmptyView()
+        case .looking:
+            StatusLabel(text: "Looking for models\u{2026}", symbol: "ellipsis.circle", tint: .secondary)
+                .font(SettingsLayout.small)
+        case .found(let names):
+            if !current.isEmpty, !names.contains(current) {
+                ProblemText(
+                    text: "\u{201C}\(current)\u{201D} is not installed at this address. Choose one from the list, or install it "
+                        + "first (with Ollama: ollama pull \(current)).")
+            } else {
+                StatusLabel(
+                    text: names.count == 1 ? "1 model installed here." : "\(names.count) models installed here.",
+                    symbol: "checkmark.circle.fill", tint: .green)
+                    .font(SettingsLayout.small)
+            }
+        case .failed(let reason):
+            HStack {
+                ProblemText(text: reason + " If you use Ollama, make sure it is running.")
+                Spacer()
+                Button("Try again") { Task { await model.refreshLocalModels() } }
+            }
         }
     }
 

@@ -71,6 +71,8 @@ enum ModelLookup: Equatable {
     private(set) var loginItemProblem: String?
     var modelLookup: ModelLookup = .idle
     var learned = LearningSnapshot()
+    /// What the address of the model on this Mac says is installed there.
+    var localLookup: ModelLookup = .idle
     var findingProjects = false
     var projectSearchResult: String?
 
@@ -270,6 +272,21 @@ enum ModelLookup: Equatable {
         } catch {
             guard address == config.modelURL, key == config.modelKey else { return }
             modelLookup = .failed(error.localizedDescription)
+        }
+    }
+
+    /// Asks the address of the model on this Mac which models it has. It needs no key.
+    func refreshLocalModels() async {
+        let address = config.fallbackModelURL
+        localLookup = .looking
+        let list = system.listModels
+        do {
+            let names = try await list(address, "")
+            guard address == config.fallbackModelURL else { return }
+            localLookup = .found(names)
+        } catch {
+            guard address == config.fallbackModelURL else { return }
+            localLookup = .failed(error.localizedDescription)
         }
     }
 

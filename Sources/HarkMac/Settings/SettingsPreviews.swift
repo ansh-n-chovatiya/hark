@@ -163,6 +163,7 @@ extension SettingsModel {
             uniqueKeysWithValues: Permission.allCases.map { ($0, system.permissionStatus($0)) })
         model.history = history.reversed()
         model.modelLookup = .found(["careful-model", "fast-model", "quick-model"])
+        model.localLookup = .found(["qwen2.5:7b", "llama3.2:3b"])
         model.learned = LearningSnapshot(
             suggestions: [
                 Suggestion(
