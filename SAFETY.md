@@ -69,7 +69,9 @@ These can be put back, usually with "undo that".
 - Paste something you copied earlier.
 - Type what you said, when you hold the dictation key you chose. Only your own words are typed, as
   letters: never Return, a shortcut or any other key, and never into a password field. It does not
-  touch the clipboard.
+  touch the clipboard, except when there is no text box to type into (or typing is not possible): then the
+  words are copied there, so they are not lost, and you are told to paste them. They are never copied
+  when a password field is selected.
 - Run a routine you named outright, when none of its steps is marked as destructive. What a
   routine did is not put back by "undo that".
 

@@ -54,14 +54,20 @@ struct KeychainError: LocalizedError {
 public enum ConfigStore {
     private static let secrets = KeychainStore()
 
+    /// Set in the environment of a test run that does not need the model key, so a freshly built command-line
+    /// program does not ask for the login password to read it.
+    private static var skipsKeychain: Bool { ProcessInfo.processInfo.environment["HARK_NO_KEYCHAIN"] != nil }
+
     public static func load(from url: URL = Paths.config) throws -> Config {
         let loaded = try Config.load(from: url)
+        if skipsKeychain { return loaded }
         let result = ConfigSecrets.resolve(loaded: loaded, store: secrets)
         if let rewrite = result.rewrite { try? rewrite.save(to: url) }
         return result.inMemory
     }
 
     public static func save(_ config: Config, to url: URL = Paths.config) throws {
+        if skipsKeychain { return }
         try ConfigSecrets.forDisk(config, store: secrets).save(to: url)
     }
 }

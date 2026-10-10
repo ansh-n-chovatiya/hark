@@ -120,7 +120,9 @@ do). Click where you want text, hold the key, say what you want written, and let
 words where the cursor is, in any app, using the speech model on your Mac, so there is no limit on how
 much you dictate. It removes "um" and "uh", flattens line breaks and capitalises the first letter, and
 that is all: no model rewrites your words. It only presses letter keys: never Return, so nothing is
-sent or run, and it does not use the clipboard. It refuses when a password field is selected.
+sent or run. It refuses when a password field is selected. If nothing that takes text is selected (or the page
+in front has no text box), the words are copied to the clipboard instead of being lost: the pill says so, and
+you paste them with ⌘V. "Copy last dictation" in the menu bar menu copies the last one again.
 To keep talking with no key held, tap the dictation key twice quickly: a stop button appears next to the
 waveform, and one more tap of the key (or the stop button) types what you said. The ✕ cancels either way.
 While you hold the key a small pill with a waveform shows in the top-right corner, so it stays out of

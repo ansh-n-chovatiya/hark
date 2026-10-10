@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 public enum DictationState: Sendable, Equatable {
-    case hidden, listening, handsFree, typing, typed(Int), error(String)
+    case hidden, listening, handsFree, typing, typed(Int), copied(Int), error(String)
 }
 
 /// A small pill that says dictation is on, with a waveform that follows the voice and a cancel
@@ -18,6 +18,8 @@ public enum DictationState: Sendable, Equatable {
     private static let margin: CGFloat = 12
     private static let doneStay: Duration = .milliseconds(1200)
     private static let errorStay: Duration = .milliseconds(4000)
+    /// Long enough to read, as it asks for something to be done.
+    private static let copiedStay: Duration = .milliseconds(5000)
     private static let offsetKey = "dictationPillOffset"
 
     private let panel: NSPanel
@@ -76,6 +78,7 @@ public enum DictationState: Sendable, Equatable {
         }
         switch state {
         case .typed: hide(after: Self.doneStay)
+        case .copied: hide(after: Self.copiedStay)
         case .error: hide(after: Self.errorStay)
         default: break
         }
@@ -180,6 +183,11 @@ struct DictationPill: View {
             Image(systemName: "checkmark.circle.fill").font(.system(size: 16)).foregroundStyle(.green)
                 .accessibilityHidden(true)
             label("Typed \(words) \(words == 1 ? "word" : "words")")
+        case .copied(let words):
+            Image(systemName: "doc.on.clipboard.fill").font(.system(size: 15)).foregroundStyle(.white.opacity(0.9))
+                .accessibilityHidden(true)
+            label("No text box. \(words) \(words == 1 ? "word" : "words") copied: press \u{2318}V to paste")
+                .frame(maxWidth: 260, alignment: .leading).padding(.vertical, 8)
         case .error(let message):
             Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 16)).foregroundStyle(.orange)
                 .accessibilityHidden(true)

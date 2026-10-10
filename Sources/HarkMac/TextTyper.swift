@@ -2,17 +2,23 @@ import AppKit
 import ApplicationServices
 import Carbon.HIToolbox
 
-enum TextTyperError: LocalizedError {
+public enum TextTyperError: LocalizedError {
     case notAllowed, passwordField, nothingFocused
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .notAllowed: "Hark needs the Accessibility permission to type for you."
         case .passwordField: "A password field is selected, so Hark did not type."
-        case .nothingFocused: "Click where you want the text first, then hold the key and speak."
+        case .nothingFocused: "There is no text box to type into."
         }
     }
 }
+
+/// Kinds of focused element that cannot take typed text.
+private let notATextBox: Set<String> = [
+    kAXButtonRole, kAXCheckBoxRole, kAXRadioButtonRole, kAXImageRole, kAXStaticTextRole, kAXMenuItemRole,
+    kAXMenuBarItemRole, kAXToolbarRole, kAXWindowRole, kAXApplicationRole, kAXScrollAreaRole, "AXWebArea", "AXLink",
+]
 
 /// Types the user's own words into whatever has the keyboard focus, as key presses, so it works in
 /// any app. It sends only text: never Return, Tab, a shortcut or any other key, and it does not
@@ -57,5 +63,10 @@ public enum TextTyper {
         var subrole: CFTypeRef?
         _ = AXUIElementCopyAttributeValue(ref, kAXSubroleAttribute as CFString, &subrole)
         if (subrole as? String) == (kAXSecureTextFieldSubrole as String) { throw TextTyperError.passwordField }
+        // Typing at something that is not a text box does nothing, or worse: on a web page without a text box
+        // focused the letters are the page's keyboard shortcuts. Unknown kinds of element are still typed at.
+        var role: CFTypeRef?
+        _ = AXUIElementCopyAttributeValue(ref, kAXRoleAttribute as CFString, &role)
+        if let role = role as? String, notATextBox.contains(role) { throw TextTyperError.nothingFocused }
     }
 }

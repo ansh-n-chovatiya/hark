@@ -440,10 +440,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     dictationIndicator.show(.hidden)
                     return
                 }
-                try await TextTyper.type(text)
                 let words = text.split(separator: " ").count
-                logger.notice("dictated \(words, privacy: .public) words")
-                dictationIndicator.show(.typed(words))
+                menuBar?.setLastDictation(text)
+                do {
+                    try await TextTyper.type(text)
+                    logger.notice("dictated \(words, privacy: .public) words")
+                    dictationIndicator.show(.typed(words))
+                } catch TextTyperError.passwordField {
+                    // Never copied: a password box is the one place the words must not end up.
+                    dictationIndicator.show(.error(TextTyperError.passwordField.localizedDescription))
+                } catch {
+                    // Nowhere to type: keep what was said on the clipboard, so it is not lost.
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(text, forType: .string)
+                    logger.notice("dictated \(words, privacy: .public) words to the clipboard")
+                    dictationIndicator.show(.copied(words))
+                }
             } catch {
                 dictationIndicator.show(.error(error.localizedDescription))
             }

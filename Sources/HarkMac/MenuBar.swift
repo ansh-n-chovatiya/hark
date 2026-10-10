@@ -23,6 +23,8 @@ import SwiftUI
     private let headerItem = NSMenuItem()
     private let settingsItem = NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
     private let settingsSeparator = NSMenuItem.separator()
+    private var lastDictation: String?
+    private let dictationItem = NSMenuItem(title: "Copy last dictation", action: #selector(copyLastDictation), keyEquivalent: "")
     private let learningItem = NSMenuItem(title: "", action: #selector(openLearning), keyEquivalent: "")
 
     public override init() {
@@ -42,6 +44,10 @@ import SwiftUI
         type.target = self
         type.image = Self.icon("keyboard")
         menu.addItem(type)
+        dictationItem.target = self
+        dictationItem.image = Self.icon("doc.on.clipboard")
+        dictationItem.isHidden = true
+        menu.addItem(dictationItem)
         learningItem.target = self
         learningItem.image = Self.icon("lightbulb")
         learningItem.isHidden = true
@@ -93,6 +99,18 @@ import SwiftUI
     public func setSuggestionCount(_ count: Int) {
         learningItem.isHidden = count == 0
         learningItem.title = count == 1 ? "Hark noticed 1 thing\u{2026}" : "Hark noticed \(count) things\u{2026}"
+    }
+
+    /// Keeps the last dictated words in memory only, so they can be copied if they went to the wrong place.
+    public func setLastDictation(_ text: String) {
+        lastDictation = text
+        dictationItem.isHidden = false
+    }
+
+    @objc private func copyLastDictation() {
+        guard let lastDictation else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(lastDictation, forType: .string)
     }
 
     @objc private func openLearning() {
