@@ -78,6 +78,18 @@ public final class TimingLog: Sendable {
         }
     }
 
+    /// Keeps the newest `maxEntries` entries and drops the rest, so the file does not grow for ever.
+    /// Called when Hark starts.
+    public func trim(keeping maxEntries: Int = 5000) {
+        queue.sync {
+            guard let text = try? String(contentsOf: url, encoding: .utf8) else { return }
+            let lines = text.split(separator: "\n", omittingEmptySubsequences: true)
+            guard lines.count > maxEntries else { return }
+            let kept = lines.suffix(maxEntries).joined(separator: "\n") + "\n"
+            try? kept.write(to: url, atomically: true, encoding: .utf8)
+        }
+    }
+
     public func all() -> [Timings] {
         queue.sync {
             guard let text = try? String(contentsOf: url, encoding: .utf8) else { return [] }

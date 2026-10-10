@@ -1,5 +1,6 @@
 import Foundation
 import HarkCore
+import Network
 import os
 
 /// One model Hark can ask, in the order it is tried.
@@ -9,6 +10,23 @@ public struct ModelChoice: Sendable {
     public let model: any ChatModel
     /// A small model standing in for a better one. Hark does not let it plan anything that closes or quits.
     public let isStandIn: Bool
+    /// Needs the internet to answer. Skipped at once when the Mac is offline, instead of waiting for it to fail.
+    public var needsNetwork = false
+}
+
+/// Whether the Mac can reach the internet at all, watched by the system. Assumed yes until it says otherwise.
+public final class NetworkStatus: Sendable {
+    public static let shared = NetworkStatus()
+
+    private let online = OSAllocatedUnfairLock(initialState: true)
+    private let monitor = NWPathMonitor()
+
+    public var isOnline: Bool { online.withLock { $0 } }
+
+    public func start() {
+        monitor.pathUpdateHandler = { [online] path in online.withLock { $0 = path.status == .satisfied } }
+        monitor.start(queue: DispatchQueue(label: "hark.network"))
+    }
 }
 
 /// Which models just failed, why, and until when. A model that is out of quota is not asked again
@@ -78,11 +96,16 @@ public struct ModelChain: ChatModel {
     private let headStart: Duration
     private let last = Last()
     private let health: ModelHealth
+    private let isOnline: @Sendable () -> Bool
 
-    public init(choices: [ModelChoice], headStart: Duration = .milliseconds(3500), health: ModelHealth = .shared) {
+    public init(
+        choices: [ModelChoice], headStart: Duration = .milliseconds(3500), health: ModelHealth = .shared,
+        isOnline: @escaping @Sendable () -> Bool = { NetworkStatus.shared.isOnline }
+    ) {
         self.choices = choices
         self.headStart = headStart
         self.health = health
+        self.isOnline = isOnline
     }
 
     public var isEmpty: Bool { choices.isEmpty }
@@ -97,8 +120,10 @@ public struct ModelChain: ChatModel {
     }
 
     public func reply(to messages: [ChatMessage], tools: [ToolSpec]) async throws -> ChatReply {
-        let live = choices.filter { self.health.status(of: $0.id) == nil }
-        let order = live.isEmpty ? choices : live
+        // Offline, a model that needs the internet is not even tried; one on this Mac answers at once.
+        let reachable = isOnline() ? choices : choices.filter { !$0.needsNetwork }
+        let live = reachable.filter { self.health.status(of: $0.id) == nil }
+        let order = live.isEmpty ? (reachable.isEmpty ? choices : reachable) : live
         guard !order.isEmpty else { throw ModelChainError(message: "No model is set up.") }
         // Until one answers, nothing is credited, so a failed command never shows the last answerer.
         last.clear()
@@ -181,7 +206,8 @@ public enum ModelSetup {
         var seen = Set<String>()
         func add(_ key: String, _ id: String, _ label: String, _ model: any ChatModel, standIn: Bool) {
             guard seen.insert(id).inserted else { return }
-            found.append((key, ModelChoice(id: id, label: label, model: model, isStandIn: standIn)))
+            let isLocal = (model as? OpenAIChatModel)?.isLocal == true
+            found.append((key, ModelChoice(id: id, label: label, model: model, isStandIn: standIn, needsNetwork: !isLocal)))
         }
         if let main = OpenAIChatModel(url: config.modelURL, models: config.model, key: config.modelKey) {
             add("online", "openai:\(config.modelURL)#\(config.model)", main.isLocal ? "Model on this Mac" : "Online model", main, standIn: false)

@@ -52,3 +52,23 @@ private func entry(verb: String, totalMs: Double) -> Timings {
         #expect(try decoder.decode(Timings.self, from: Data(old.utf8)).model == nil)
     }
 }
+
+@Suite struct TimingTrimTests {
+    @Test func trimmingKeepsTheNewestEntriesAndLeavesASmallFileAlone() throws {
+        let url = FileManager.default.temporaryDirectory.appending(path: "hark-trim-\(UUID().uuidString).jsonl")
+        let log = TimingLog(url: url)
+        for index in 0..<30 {
+            log.append(Timings(
+                at: Date(timeIntervalSince1970: 1_790_000_000 + Double(index)), raw: "command \(index)", verb: nil,
+                outcome: "done", transcribeMs: 0, parseMs: 0, matchMs: 0, actMs: 0, totalMs: 0))
+        }
+        Thread.sleep(forTimeInterval: 0.3)
+        log.trim(keeping: 100)
+        #expect(log.all().count == 30)
+        log.trim(keeping: 10)
+        let kept = log.all()
+        #expect(kept.count == 10)
+        #expect(kept.first?.raw == "command 20")
+        #expect(kept.last?.raw == "command 29")
+    }
+}

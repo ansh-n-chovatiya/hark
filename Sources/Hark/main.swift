@@ -93,6 +93,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
+        NetworkStatus.shared.start()
         config = loadConfig()
         startLearning()
         install(config)
@@ -134,6 +135,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Starts noting which apps and sites come to the front, sets up folders on the first run, and keeps
     /// the menu's "Hark noticed" line up to date. Does nothing while learning is off.
     private func startLearning() {
+        log.trim()
         activityLog.prune()
         if learning.setUpIfNeeded(&config) {
             try? ConfigStore.save(config)

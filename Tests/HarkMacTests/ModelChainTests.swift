@@ -29,6 +29,25 @@ private struct FakeModel: ChatModel {
 }
 
 @Suite struct ModelChainTests {
+    @Test func offlineTheInternetModelsAreSkippedAndTheOneOnThisMacAnswers() async throws {
+        let online = FakeModel(behaviour: .answers("online"))
+        let local = FakeModel(behaviour: .answers("local"))
+        let choices = [
+            ModelChoice(id: "o-\(UUID())", label: "Online", model: online, isStandIn: false, needsNetwork: true),
+            ModelChoice(id: "l-\(UUID())", label: "Local", model: local, isStandIn: true, needsNetwork: false),
+        ]
+        let chain = ModelChain(choices: choices, headStart: .seconds(5), health: ModelHealth(), isOnline: { false })
+        #expect(try await chain.reply(to: [], tools: []).text == "local")
+        #expect(online.calls.value == 0)
+    }
+
+    @Test func offlineWithOnlyInternetModelsStillTriesThem() async throws {
+        let online = FakeModel(behaviour: .answers("online"))
+        let choices = [ModelChoice(id: "o-\(UUID())", label: "Online", model: online, isStandIn: false, needsNetwork: true)]
+        let chain = ModelChain(choices: choices, headStart: .seconds(5), health: ModelHealth(), isOnline: { false })
+        #expect(try await chain.reply(to: [], tools: []).text == "online")
+    }
+
     private func chain(_ models: [(String, FakeModel, Bool)], headStart: Duration = .seconds(5)) -> ModelChain {
         let choices = models.map { ModelChoice(id: "t-\(UUID().uuidString)-\($0.0)", label: $0.0, model: $0.1, isStandIn: $0.2) }
         return ModelChain(choices: choices, headStart: headStart, health: ModelHealth())
