@@ -114,6 +114,13 @@ scripts/install.sh
 >
 > **"Unidentified developer" warning?** Hark is signed with a certificate made on your own Mac, not by Apple. That is normal for free, self-built apps. Every step is readable in `scripts/bundle.sh`.
 
+## 🗑 Uninstall
+
+```sh
+scripts/uninstall.sh            # removes the app, keeps your settings
+scripts/uninstall.sh --purge    # removes everything, including what Hark learned and the model key
+```
+
 ## 🧠 Does it need an AI model?
 
 **No.** Simple commands are handled by built-in rules instantly. For harder, multi-step sentences Hark can ask an AI model:

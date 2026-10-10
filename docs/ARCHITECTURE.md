@@ -70,6 +70,7 @@ Set `HARK_NO_KEYCHAIN=1` to run without reading the Keychain.
 | `scripts/install.sh` | Release build into `~/Applications`, create default config, launch. |
 | `scripts/get.sh` | Install the latest prebuilt release (what users run). |
 | `scripts/release.sh vX.Y.Z` | Build, zip and publish a release with the changelog as notes. |
+| `scripts/uninstall.sh [--purge]` | Remove the app; with `--purge` also settings, learned data, the Keychain key and permissions. |
 | `scripts/test.sh` | Run tests with the Testing framework paths set. |
 | `scripts/check-capabilities.sh` | Fail if a model tool is not on the approved list or looks destructive. |
 | `scripts/package.sh` | Zip the source for publishing. |
