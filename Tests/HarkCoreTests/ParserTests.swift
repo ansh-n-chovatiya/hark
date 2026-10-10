@@ -17,6 +17,7 @@ private func parsed(_ transcript: String) -> Command? {
     ("Show me the billing dashboard", "billing dashboard"),
     ("Find phase six recording", "phase 6 recording"),
     ("Hey, can you open Linear please?", "linear"),
+    ("Launch Brave browser", "brave browser"),
 ])
 func parserMapsOpenLeads(transcript: String, query: String) {
     let command = parsed(transcript)

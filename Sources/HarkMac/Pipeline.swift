@@ -382,7 +382,7 @@ public actor Pipeline {
     private func frontApp() async -> NSRunningApplication? {
         await MainActor.run {
             guard let app = NSWorkspace.shared.frontmostApplication, app.activationPolicy == .regular,
-                  app.bundleIdentifier != Bundle.main.bundleIdentifier, !KeySafety.isTerminal(app)
+                  !HarkSelf.isHark(app), !KeySafety.isTerminal(app)
             else { return nil }
             return app
         }

@@ -55,4 +55,13 @@ import Testing
         }
         #expect(Set(indexes) == [0, 1])
     }
+
+    @Test func aOneWordTitleDoesNotWinAgainstALongRequest() {
+        // "Add" reads as "new", but it is one word of a four-word request.
+        let labels = ["Add", "Remove", "Not now", "Never"]
+        #expect(AppAction.chooseLabel("make this window full size", among: labels) == .none)
+        #expect(AppAction.chooseLabel("new window in chrome", among: labels) == .none)
+        #expect(AppAction.chooseLabel("add", among: labels) == .label(0))
+        #expect(AppAction.choose("print this page", among: [["File", "Print…"]]) == .item(["File", "Print…"]))
+    }
 }

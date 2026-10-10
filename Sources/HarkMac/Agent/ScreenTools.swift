@@ -328,6 +328,15 @@ private enum ScreenSafety {
     }
 }
 
+/// Whether an app is Hark itself, the installed one or the process running this command.
+enum HarkSelf {
+    static let bundleID = "dev.hark.app"
+
+    static func isHark(_ app: NSRunningApplication) -> Bool {
+        app.bundleIdentifier == bundleID || app.processIdentifier == ProcessInfo.processInfo.processIdentifier
+    }
+}
+
 private enum ScreenApps {
     static let wakeTime = Duration.milliseconds(400)
 
@@ -336,6 +345,8 @@ private enum ScreenApps {
         if let name, !name.isEmpty {
             app = try MenuToolApps.running(named: name)
         } else if let front = NSWorkspace.shared.frontmostApplication {
+            // Hark's own windows are never what a spoken command is about, as with the lists of open things.
+            guard !HarkSelf.isHark(front) else { throw ScreenToolError(message: "Hark does not press its own buttons.") }
             app = front
         } else {
             throw ScreenToolError(message: "No app is in front.")

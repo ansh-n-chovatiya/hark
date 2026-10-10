@@ -155,7 +155,7 @@ private struct VerbLead: Sendable {
 /// Written after filler is removed, so "save this as" is "save as". Longest lead is tried first.
 private let verbLeads: [VerbLead] = [
     ("switch to", Verb.open), ("go to", .open), ("jump to", .open), ("bring up", .open),
-    ("switch", .open), ("open", .open), ("show", .open), ("find", .open), ("focus", .open),
+    ("switch", .open), ("open", .open), ("launch", .open), ("show", .open), ("find", .open), ("focus", .open),
     ("close all duplicate tabs", .closeDuplicates), ("close duplicate tabs", .closeDuplicates),
     ("close all duplicates", .closeDuplicates), ("close duplicates", .closeDuplicates),
     ("close duplicate", .closeDuplicates), ("remove duplicate tabs", .closeDuplicates),

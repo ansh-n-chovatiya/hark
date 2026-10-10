@@ -108,8 +108,11 @@ public enum AppAction {
         guard shared > 0 else { return 0 }
         // Everything asked for is in the title, which has a few extra words ("New Note" in "New Note in Folder").
         if wantedSet.isSubset(of: haveSet) { return max(0.6, 0.9 - 0.08 * Double(haveSet.count - wantedSet.count)) }
-        // The title is shorter than the request ("print this page" for "Print").
-        if haveSet.isSubset(of: wantedSet) { return haveSet.count == 1 ? 0.65 : 0.75 }
+        // The title is shorter than the request ("print this page" for "Print"). It has to cover at least half
+        // of what was asked, so a one-word title never wins against a long request that merely contains it.
+        if haveSet.isSubset(of: wantedSet), Double(haveSet.count) / Double(wantedSet.count) >= 0.5 {
+            return haveSet.count == 1 ? 0.65 : 0.75
+        }
         return 0.5 * Double(shared) / Double(wantedSet.count)
     }
 
