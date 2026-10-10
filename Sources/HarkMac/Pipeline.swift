@@ -238,6 +238,10 @@ public actor Pipeline {
             // A web search needs no model: the address is built from the words that were said.
             timings.verb = "search"
             outcome = await timed(&timings.actMs) { await searchWeb(search) }
+        } else if let system = SystemCommand.request(in: asked.command) {
+            // Volume, mute, dark mode and the lock screen are single, certain things: no model is needed.
+            timings.verb = "system"
+            outcome = await timed(&timings.actMs) { await runSystem(system) }
         } else if let done = await appAction(asked.command, timings: &timings) {
             outcome = done
         } else if let command {
@@ -446,6 +450,29 @@ public actor Pipeline {
             for item in await source.items(for: command) where AppAction.tokens(item.title) == wanted { return true }
         }
         return false
+    }
+
+    private func runSystem(_ command: SystemCommand) async -> Outcome {
+        let tool: any Tool
+        let arguments: JSONValue
+        switch command {
+        case .volume(let percent):
+            (tool, arguments) = (SetVolumeTool(), .object(["percent": .number(Double(percent))]))
+        case .mute(let muted):
+            (tool, arguments) = (SetMuteTool(), .object(["muted": .bool(muted)]))
+        case .appearance(let mode):
+            (tool, arguments) = (SetAppearanceTool(), .object(["mode": .string(mode)]))
+        case .lock:
+            (tool, arguments) = (LockScreenTool(), .object([:]))
+        }
+        if dryRun { return .done("Would: \(tool.describe(arguments))") }
+        do {
+            let result = try await tool.call(arguments)
+            if let step = result.undo { undo.push(step) }
+            return .done(result.summary ?? result.output)
+        } catch {
+            return .failed(error.localizedDescription)
+        }
     }
 
     private func searchWeb(_ request: WebSearchRequest) async -> Outcome {
