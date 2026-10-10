@@ -14,8 +14,10 @@ struct SettingsSystem: Sendable {
     var report: @Sendable (WrongLog.Entry) -> Void
     /// The models a service offers for this address and key.
     var listModels: @Sendable (String, String) async throws -> [String]
+    /// What Hark has noticed, and how the user answers it.
+    var learning: LearningCenter
 
-    static func live(log: TimingLog, wrongLog: WrongLog) -> SettingsSystem {
+    static func live(log: TimingLog, wrongLog: WrongLog, learning: LearningCenter) -> SettingsSystem {
         SettingsSystem(
             permissionStatus: { Permissions.status($0) },
             openPermissionSettings: { Permissions.openSettings(for: $0) },
@@ -30,7 +32,8 @@ struct SettingsSystem: Sendable {
             history: { log.all() },
             reports: { wrongLog.all() },
             report: { wrongLog.append($0) },
-            listModels: { try await ModelCatalog.models(address: $0, key: $1) }
+            listModels: { try await ModelCatalog.models(address: $0, key: $1) },
+            learning: learning
         )
     }
 }

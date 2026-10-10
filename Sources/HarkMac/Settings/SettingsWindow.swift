@@ -9,10 +9,11 @@ import HarkCore
     public init(
         config: Config,
         log: TimingLog,
+        learning: LearningCenter,
         wrongLog: WrongLog = WrongLog(url: Paths.wrong),
         onChange: @escaping @MainActor (Config) -> Void
     ) {
-        model = SettingsModel(config: config, system: .live(log: log, wrongLog: wrongLog), onChange: onChange)
+        model = SettingsModel(config: config, system: .live(log: log, wrongLog: wrongLog, learning: learning), onChange: onChange)
     }
 
     public func show(_ section: SettingsSection = .general) {

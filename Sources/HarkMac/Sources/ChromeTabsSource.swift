@@ -42,6 +42,16 @@ public actor ChromeTabsSource: ItemSource {
         snapshot
     }
 
+    /// The site (its host name, nothing more) of the front tab of the front window, or nil when Chrome
+    /// is not running, is not answering, or the window is private.
+    public func frontSite() async -> String? {
+        guard ChromeScript.isRunning, let tabs = try? await ChromeScript.list() else { return nil }
+        guard let tab = tabs.first(where: { $0.isActive && $0.inFrontWindow }), !tab.isPrivate,
+              let host = URL(string: tab.url)?.host()?.lowercased(), !host.isEmpty
+        else { return nil }
+        return host
+    }
+
     public func perform(_ verb: Verb, on item: Item) async throws -> UndoStep? {
         switch verb {
         case .open: try await open(item)
@@ -168,6 +178,8 @@ public actor ChromeTabsSource: ItemSource {
         let url: String
         let isActive: Bool
         let inFrontWindow: Bool
+        /// In a private (incognito) window. Learning never looks at these.
+        let isPrivate: Bool
     }
 
     struct ClosedTab: Sendable {
@@ -190,6 +202,19 @@ public actor ChromeTabsSource: ItemSource {
         static let name: AEKeyword = 0x706E_616D            // 'pnam'
         static let url: AEKeyword = 0x5552_4C20             // 'URL '
         static let activeTabIndex: AEKeyword = 0x6163_5449  // 'acTI'
+        static let mode: AEKeyword = 0x6D6F_6465            // 'mode'
+    }
+
+    /// Chrome calls a private window's mode "incognito". Read as a name or as its four-letter code,
+    /// and when it cannot be told the window is treated as private, so nothing is learned from it.
+    private static func isPrivate(_ window: NSAppleEventDescriptor) -> Bool {
+        guard let mode = window.forKeyword(Code.mode) else { return true }
+        let name = (mode.stringValue ?? "").lowercased()
+        let code = String(format: "%c%c%c%c",
+            (mode.enumCodeValue >> 24) & 0xFF, (mode.enumCodeValue >> 16) & 0xFF,
+            (mode.enumCodeValue >> 8) & 0xFF, mode.enumCodeValue & 0xFF).lowercased()
+        if name.contains("incog") || code == "icog" || code == "incg" { return true }
+        return !(name.contains("normal") || code == "nrml" || code == "norm")
     }
 
     static func list() throws -> [LiveTab] {
@@ -216,7 +241,8 @@ public actor ChromeTabsSource: ItemSource {
                     title: tab.forKeyword(Code.name)?.stringValue ?? "",
                     url: tab.forKeyword(Code.url)?.stringValue ?? "",
                     isActive: index == Int(active),
-                    inFrontWindow: windowPosition == 1
+                    inFrontWindow: windowPosition == 1,
+                    isPrivate: isPrivate(properties)
                 ))
             }
         }

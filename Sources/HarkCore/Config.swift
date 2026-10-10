@@ -40,6 +40,9 @@ public struct Config: Codable, Sendable, Equatable {
     /// The key held to dictate: what is said is typed into whatever text box is focused. Empty
     /// turns dictation off.
     public var dictationKey: String
+    /// Whether Hark learns from how the Mac is used: it notes which apps and websites (names only) come
+    /// to the front, and offers names, pages and routines. On unless the user turns it off.
+    public var learns: Bool
     public var searchFolders: [String]
     public var repos: [String]
     public var aliases: [String: String]
@@ -62,6 +65,7 @@ public struct Config: Codable, Sendable, Equatable {
         hotkey: String = "rightOption",
         typeKey: String = "rightCommand",
         dictationKey: String = "",
+        learns: Bool = true,
         searchFolders: [String] = [],
         repos: [String] = [],
         aliases: [String: String] = [:],
@@ -78,6 +82,7 @@ public struct Config: Codable, Sendable, Equatable {
         self.hotkey = hotkey
         self.typeKey = typeKey
         self.dictationKey = dictationKey
+        self.learns = learns
         self.searchFolders = searchFolders
         self.repos = repos
         self.aliases = aliases
@@ -99,6 +104,7 @@ public struct Config: Codable, Sendable, Equatable {
         hotkey = try values.decodeIfPresent(String.self, forKey: .hotkey) ?? defaults.hotkey
         typeKey = try values.decodeIfPresent(String.self, forKey: .typeKey) ?? defaults.typeKey
         dictationKey = try values.decodeIfPresent(String.self, forKey: .dictationKey) ?? defaults.dictationKey
+        learns = try values.decodeIfPresent(Bool.self, forKey: .learns) ?? defaults.learns
         searchFolders = try values.decodeIfPresent([String].self, forKey: .searchFolders) ?? defaults.searchFolders
         repos = try values.decodeIfPresent([String].self, forKey: .repos) ?? defaults.repos
         aliases = try values.decodeIfPresent([String: String].self, forKey: .aliases) ?? defaults.aliases
@@ -139,4 +145,6 @@ public enum Paths {
 
     public static var timings: URL { support.appending(path: "timings.jsonl") }
     public static var wrong: URL { support.appending(path: "wrong.jsonl") }
+    public static var activity: URL { support.appending(path: "activity.jsonl") }
+    public static var learning: URL { support.appending(path: "learning.json") }
 }

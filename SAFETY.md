@@ -89,6 +89,21 @@ items and your routines (their names, never their commands) go to that service s
 what to do. Check that service's terms: a free tier
 may use what it receives. With only a local model set up, nothing leaves the Mac.
 
+## What Hark remembers about how you use your Mac
+Learning is on by default and has its own switch (Settings, Learning). While it is on, Hark keeps
+`activity.jsonl` in `~/Library/Application Support/Hark`, readable only by you: the name of each app
+that came to the front, and the host name (like `github.com`) of Chrome's front tab, each with the
+time. Never a page title, a full address, anything typed, anything copied or any file name, and
+nothing from private windows. Records older than 90 days are deleted. The file is never sent to any
+model or any service, and Hark's decisions do not read it.
+
+From it, and from your command history, Hark offers names, saved web pages and open-only routines. It
+adds nothing until you tap Add, and what it adds is ordinary settings you can edit. The one thing it
+does by itself is, on the first run, look in the usual project folders (Developer, Projects, Code, dev,
+src, Sites, Workspace) and list the folder names it finds, if you have not set any. Learning can never
+add an action, and a learned routine can only open things. "Delete what Hark has noticed" in the
+Learning tab empties the file.
+
 ## What this does not protect against
 - An action that is allowed but not what you meant, such as opening the wrong file. The fix is
   "undo that".

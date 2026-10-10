@@ -69,6 +69,8 @@ Hark is built so that even if it misunderstands you, it **can't do real damage**
 | Read what's inside your files | Lets you say "undo that" where it can |
 | Open a web address you didn't name | Locks your clipboard history with a key only your account can read |
 
+**Hark learns your habits, on your Mac only.** It notices which apps and websites you use together and offers names and routines for you to accept. It is on by default and has one switch to turn it off: **Settings → Learning**.
+
 Details: [SAFETY.md](SAFETY.md).
 
 ## 📦 Install in 2 steps

@@ -20,6 +20,7 @@ struct SettingsTab: View {
         case .model: UnderstandingTab(model: model)
         case .names: NamesTab(model: model)
         case .routines: RoutinesTab(model: model)
+        case .learning: LearningTab(model: model)
         case .history: HistoryTab(model: model)
         }
     }

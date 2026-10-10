@@ -59,6 +59,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var settings: SettingsWindow?
     private var config = Config()
     private let log = TimingLog(url: Paths.timings)
+    private let activityLog = ActivityLog(url: Paths.activity)
+    private lazy var learning = LearningCenter(
+        activity: activityLog, history: log, store: LearningStore(url: Paths.learning))
+    private var recorder: ActivityRecorder?
+    private var suggestionTimer: Timer?
     private var capture: Task<Bool, Never>?
     private var isHolding = false
     private var pressedAt: ContinuousClock.Instant?
@@ -86,10 +91,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         config = loadConfig()
+        startLearning()
         install(config)
         commandBar.onSubmit = { [weak self] text in self?.runTyped(text) }
         menuBar?.onTypeCommand = { [weak self] in self?.commandBar.show() }
         menuBar?.onSettings = { [weak self] in self?.showSettings() }
+        menuBar?.onLearning = { [weak self] in self?.showSettings(.learning) }
         overlay.onPick = { [weak self] number in
             Task {
                 guard let self, let pipeline = self.pipeline else { return }
@@ -113,6 +120,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         Task { await startHotkey(key: config.hotkey) }
         stallLog.start()
+    }
+
+    /// Starts noting which apps and sites come to the front, sets up folders on the first run, and keeps
+    /// the menu's "Hark noticed" line up to date. Does nothing while learning is off.
+    private func startLearning() {
+        activityLog.prune()
+        if learning.setUpIfNeeded(&config) {
+            try? config.save(to: Paths.config)
+            logger.notice("set up folders and projects on first run")
+        }
+        let recorder = ActivityRecorder(log: activityLog, chrome: ChromeTabsSource()) { [weak self] in
+            self?.config.learns ?? false
+        }
+        recorder.start()
+        self.recorder = recorder
+        let timer = Timer(timeInterval: 30 * 60, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.refreshSuggestionHint() }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        suggestionTimer = timer
+        Task {
+            try? await Task.sleep(for: .seconds(8))
+            refreshSuggestionHint()
+        }
+    }
+
+    private func refreshSuggestionHint() {
+        let center = learning
+        let current = config
+        Task {
+            let count = await Task.detached { center.snapshot(config: current).suggestions.count }.value
+            menuBar?.setSuggestionCount(count)
+        }
     }
 
     /// Builds the pipeline for these settings. Called at launch and again whenever they change.
@@ -145,7 +185,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func showSettings(_ section: SettingsSection = .general) {
         if settings == nil {
-            settings = SettingsWindow(config: config, log: log) { [weak self] changed in self?.apply(changed) }
+            settings = SettingsWindow(config: config, log: log, learning: learning) { [weak self] changed in self?.apply(changed) }
         }
         // The file may have changed since the window was made: a saved setup, or a hand edit.
         settings?.reload(config)
@@ -161,6 +201,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             overlay.show(.error("Your settings could not be saved: \(error.localizedDescription)"))
         }
         install(changed)
+        refreshSuggestionHint()
         guard keyChanged else {
             startTypeKey()
             return

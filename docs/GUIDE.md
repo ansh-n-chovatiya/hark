@@ -82,6 +82,13 @@ account can read. Clipboard text is never sent to any model.
 bar opens where you type the same commands. It is a different key from the one you hold to speak,
 so the two never get mixed up.
 
+**Learning.** Hark sets itself up and offers shortcuts so you do not have to fill in the Folders, Names,
+Web pages and Routines screens by hand. On the first run it looks for your project folders. After
+that it notices which apps and websites you open together, which sites you visit on many days, and
+commands it misheard that you then said another way, and offers each as a card in Settings, Learning:
+Add, Not now (asks again in two weeks) or Never. It remembers names only, on this Mac, and you can turn
+it off or delete what it noted there. See [SAFETY.md](../SAFETY.md).
+
 **Dictation.** Choose a key under Settings, General, "Key to hold for dictation" (it is off until you
 do). Click where you want text, hold the key, say what you want written, and let go: Hark types your
 words where the cursor is, in any app, using the speech model on your Mac, so there is no limit on how

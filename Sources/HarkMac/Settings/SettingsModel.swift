@@ -70,6 +70,7 @@ enum ModelLookup: Equatable {
     private(set) var loginItemIsOn = false
     private(set) var loginItemProblem: String?
     var modelLookup: ModelLookup = .idle
+    var learned = LearningSnapshot()
 
     let system: SettingsSystem
     private let onChange: @MainActor (Config) -> Void
@@ -161,6 +162,44 @@ enum ModelLookup: Equatable {
             case .dictation: config.dictationKey = key
             }
         }
+    }
+
+    // MARK: Learning
+
+    /// Reads what Hark has noticed. Counting the history takes a moment, so it is done off the main thread.
+    func refreshLearning() async {
+        let center = system.learning
+        let current = config
+        learned = await Task.detached { center.snapshot(config: current) }.value
+    }
+
+    func acceptSuggestion(_ suggestion: Suggestion) {
+        update { system.learning.accept(suggestion, into: &$0) }
+        reload(config)
+        learned.suggestions.removeAll { $0.id == suggestion.id }
+        Task { await refreshLearning() }
+    }
+
+    func dismissSuggestion(_ suggestion: Suggestion, forever: Bool) {
+        system.learning.dismiss(suggestion, forever: forever)
+        learned.suggestions.removeAll { $0.id == suggestion.id }
+    }
+
+    func removeLearned(_ id: String) {
+        update { system.learning.remove(id, from: &$0) }
+        reload(config)
+        Task { await refreshLearning() }
+    }
+
+    func deleteLearning() {
+        system.learning.deleteAll()
+        learned = LearningSnapshot()
+        Task { await refreshLearning() }
+    }
+
+    func setLearns(_ on: Bool) {
+        update { $0.learns = on }
+        Task { await refreshLearning() }
     }
 
     // MARK: Online model list

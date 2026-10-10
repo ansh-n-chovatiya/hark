@@ -1,5 +1,5 @@
 public enum SettingsSection: String, CaseIterable, Sendable {
-    case general, permissions, model, names, routines, history
+    case general, permissions, model, names, routines, learning, history
 }
 
 extension SettingsSection {
@@ -10,6 +10,7 @@ extension SettingsSection {
         case .model: "Understanding"
         case .names: "Names"
         case .routines: "Routines"
+        case .learning: "Learning"
         case .history: "History"
         }
     }
@@ -21,6 +22,7 @@ extension SettingsSection {
         case .model: "sparkles"
         case .names: "character.bubble"
         case .routines: "checklist"
+        case .learning: "lightbulb"
         case .history: "clock.arrow.circlepath"
         }
     }

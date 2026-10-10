@@ -135,6 +135,7 @@ extension SettingsModel {
             modelKey: "sample-key-not-real"
         )
         let history = sampleHistory
+        let scratch = FileManager.default.temporaryDirectory.appending(path: "hark-preview-learning")
         let system = SettingsSystem(
             permissionStatus: { $0 == .automation ? .notAsked : .granted },
             openPermissionSettings: { _ in },
@@ -143,7 +144,11 @@ extension SettingsModel {
             history: { history },
             reports: { [] },
             report: { _ in },
-            listModels: { _, _ in ["careful-model", "fast-model"] }
+            listModels: { _, _ in ["careful-model", "fast-model"] },
+            learning: LearningCenter(
+                activity: ActivityLog(url: scratch.appending(path: "activity.jsonl")),
+                history: TimingLog(url: scratch.appending(path: "timings.jsonl")),
+                store: LearningStore(url: scratch.appending(path: "learning.json")))
         )
         let model = SettingsModel(config: config, system: system, onChange: { _ in })
         model.refreshLoginItem()
@@ -151,6 +156,22 @@ extension SettingsModel {
             uniqueKeysWithValues: Permission.allCases.map { ($0, system.permissionStatus($0)) })
         model.history = history.reversed()
         model.modelLookup = .found(["careful-model", "fast-model", "quick-model"])
+        model.learned = LearningSnapshot(
+            suggestions: [
+                Suggestion(
+                    id: "n", kind: .name, title: "When you say \u{201C}open slak\u{201D}, hear \u{201C}open slack\u{201D}",
+                    detail: "Hark missed it 2 times, then you said it the other way and it worked."),
+                Suggestion(
+                    id: "p", kind: .page, title: "Open \u{201C}github\u{201D} by name",
+                    detail: "You were on github.com on 5 different days."),
+                Suggestion(
+                    id: "r", kind: .routine, title: "Start your day with one word: \u{201C}morning\u{201D}",
+                    detail: "You opened these together at the start of 4 days: Linear, Slack, github.com."),
+            ],
+            deadEnds: [DeadEnd(phrase: "search for swift concurrency", count: 3, lastSeen: Date(), topic: "Searching the web")],
+            accepted: [
+                LearningState.Accepted(id: "a", kind: .page, title: "Open \u{201C}linear\u{201D} by name", at: Date()),
+            ])
         model.setAddress("models.example.com/v1", for: .online)
         if let stopPort = model.routines.dropFirst().first {
             model.selectRoutine(stopPort.id)

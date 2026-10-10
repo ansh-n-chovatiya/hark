@@ -12,6 +12,9 @@ import SwiftUI
     /// Opens the bar for typing a command.
     public var onTypeCommand: (() -> Void)?
 
+    /// Opens what Hark has noticed.
+    public var onLearning: (() -> Void)?
+
     private static let lastCommandLimit = 60
 
     private let statusItem: NSStatusItem
@@ -20,6 +23,7 @@ import SwiftUI
     private let headerItem = NSMenuItem()
     private let settingsItem = NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
     private let settingsSeparator = NSMenuItem.separator()
+    private let learningItem = NSMenuItem(title: "", action: #selector(openLearning), keyEquivalent: "")
 
     public override init() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
@@ -38,6 +42,10 @@ import SwiftUI
         type.target = self
         type.image = Self.icon("keyboard")
         menu.addItem(type)
+        learningItem.target = self
+        learningItem.image = Self.icon("lightbulb")
+        learningItem.isHidden = true
+        menu.addItem(learningItem)
         menu.addItem(.separator())
 
         // Hidden until something handles it, so the menu never offers an entry that does nothing.
@@ -79,6 +87,16 @@ import SwiftUI
         header.lastCommand = trimmed.count > Self.lastCommandLimit
             ? trimmed.prefix(Self.lastCommandLimit) + "…"
             : trimmed
+    }
+
+    /// "Hark noticed 2 things", shown only when there is something to look at.
+    public func setSuggestionCount(_ count: Int) {
+        learningItem.isHidden = count == 0
+        learningItem.title = count == 1 ? "Hark noticed 1 thing\u{2026}" : "Hark noticed \(count) things\u{2026}"
+    }
+
+    @objc private func openLearning() {
+        onLearning?()
     }
 
     @objc private func typeCommand() {
