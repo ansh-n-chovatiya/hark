@@ -71,6 +71,8 @@ enum ModelLookup: Equatable {
     private(set) var loginItemProblem: String?
     var modelLookup: ModelLookup = .idle
     var learned = LearningSnapshot()
+    var findingProjects = false
+    var projectSearchResult: String?
 
     let system: SettingsSystem
     private let onChange: @MainActor (Config) -> Void
@@ -195,6 +197,27 @@ enum ModelLookup: Equatable {
         system.learning.deleteAll()
         learned = LearningSnapshot()
         Task { await refreshLearning() }
+    }
+
+    /// Looks for project folders, Desktop and Documents included. The user asked for this, so macOS may
+    /// ask to allow it. Adds what is found and says how many.
+    func findProjects() async {
+        let center = system.learning
+        let current = config
+        findingProjects = true
+        let found = await Task.detached { center.findMoreProjects(config: current) }.value
+        findingProjects = false
+        guard !found.folders.isEmpty || !found.projects.isEmpty else {
+            projectSearchResult = "No new project folders found."
+            return
+        }
+        update {
+            $0.searchFolders += found.folders
+            $0.repos += found.projects
+        }
+        projectSearchResult = found.projects.isEmpty
+            ? "Added \(found.folders.count) folder\(found.folders.count == 1 ? "" : "s")."
+            : "Added \(found.projects.count) project\(found.projects.count == 1 ? "" : "s")."
     }
 
     func setLearns(_ on: Bool) {

@@ -140,3 +140,39 @@ import Testing
         #expect(try JSONDecoder().decode(Config.self, from: Data("{}".utf8)).learns)
     }
 }
+
+@Suite struct ProjectFinderTests {
+    private func home() throws -> URL {
+        let folder = FileManager.default.temporaryDirectory.appending(path: "hark-home-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        return folder
+    }
+
+    @Test func desktopAndDocumentsAreOnlySearchedWhenAskedAndAreNotAddedAsFolders() throws {
+        let home = try home()
+        try FileManager.default.createDirectory(at: home.appending(path: "Desktop/Personal/app/.git"), withIntermediateDirectories: true)
+        #expect(ProjectFinder.find(in: home).projects.isEmpty)
+        let found = ProjectFinder.find(in: home, alsoLookIn: ProjectFinder.askFirstFolders)
+        #expect(found.projects == ["~/Desktop/Personal/app"])
+        #expect(found.folders.isEmpty)
+    }
+
+    @Test func newestProjectsComeFirstAndAreCapped() throws {
+        let home = try home()
+        for index in 0..<15 {
+            try FileManager.default.createDirectory(at: home.appending(path: "Code/p\(index)/.git"), withIntermediateDirectories: true)
+        }
+        #expect(ProjectFinder.find(in: home).projects.count == ProjectFinder.mostProjects)
+    }
+
+    @Test func findMoreSkipsWhatIsAlreadyListed() throws {
+        let home = try home()
+        try FileManager.default.createDirectory(at: home.appending(path: "Desktop/a/.git"), withIntermediateDirectories: true)
+        let scratch = FileManager.default.temporaryDirectory.appending(path: "hark-center-\(UUID().uuidString)")
+        let center = LearningCenter(
+            activity: ActivityLog(url: scratch.appending(path: "a.jsonl")), history: TimingLog(url: scratch.appending(path: "t.jsonl")),
+            store: LearningStore(url: scratch.appending(path: "l.json")))
+        #expect(center.findMoreProjects(config: Config(), home: home).projects == ["~/Desktop/a"])
+        #expect(center.findMoreProjects(config: Config(repos: ["~/Desktop/a"]), home: home).projects.isEmpty)
+    }
+}

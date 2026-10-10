@@ -172,6 +172,17 @@ public final class LearningCenter: Sendable {
         }
     }
 
+    /// What "Find my projects" would add: projects in the usual places and in Desktop and Documents that
+    /// are not already listed. Nothing is changed until the caller applies it.
+    public func findMoreProjects(
+        config: Config, home: URL = FileManager.default.homeDirectoryForCurrentUser
+    ) -> (folders: [String], projects: [String]) {
+        let found = ProjectFinder.find(in: home, alsoLookIn: ProjectFinder.askFirstFolders)
+        return (
+            found.folders.filter { !config.searchFolders.contains($0) },
+            found.projects.filter { !config.repos.contains($0) })
+    }
+
     /// First run only: fills in folders and projects if there are none. Returns whether it changed anything.
     @discardableResult
     public func setUpIfNeeded(

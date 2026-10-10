@@ -12,16 +12,23 @@ public enum ProjectFinder {
         public var projects: [String]
     }
 
-    /// `home` is a parameter so tests can use a made-up one. Paths come back written with `~`.
-    public static func find(in home: URL = FileManager.default.homeDirectoryForCurrentUser) -> Found {
+    /// Places that need the user's go-ahead: macOS asks before an app reads them. Looked in only when
+    /// the user asks for it, never on the first run.
+    public static let askFirstFolders = ["Desktop", "Documents"]
+
+    /// `home` is a parameter so tests can use a made-up one. Paths come back written with `~`. The
+    /// `alsoLookIn` folders are searched for projects, but are not added as folders themselves.
+    public static func find(
+        in home: URL = FileManager.default.homeDirectoryForCurrentUser, alsoLookIn extra: [String] = []
+    ) -> Found {
         let manager = FileManager.default
         var folders: [String] = []
         var projects: [(path: String, changed: Date)] = []
-        for name in usualFolders {
+        for name in usualFolders + extra {
             let root = home.appending(path: name, directoryHint: .isDirectory)
             var isDirectory: ObjCBool = false
             guard manager.fileExists(atPath: root.path, isDirectory: &isDirectory), isDirectory.boolValue else { continue }
-            folders.append("~/\(name)")
+            if usualFolders.contains(name) { folders.append("~/\(name)") }
             // Projects sit directly in the folder, or one level further down (~/Code/work/app).
             for child in subfolders(of: root) {
                 if isProject(child) {

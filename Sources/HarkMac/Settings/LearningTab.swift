@@ -15,6 +15,7 @@ struct LearningTab: View {
                         + "offers shortcuts. It all stays on this Mac.")
             }
             if model.config.learns {
+                findProjects
                 noticed
                 if !model.learned.accepted.isEmpty { learnedForYou }
                 if !model.learned.deadEnds.isEmpty { deadEnds }
@@ -40,6 +41,25 @@ struct LearningTab: View {
                 await model.refreshLearning()
                 try? await Task.sleep(for: .seconds(30))
             }
+        }
+    }
+
+    private var findProjects: some View {
+        Section {
+            HStack {
+                Button("Find my projects") { Task { await model.findProjects() } }
+                    .disabled(model.findingProjects)
+                if model.findingProjects { ProgressView().controlSize(.small) }
+                if let result = model.projectSearchResult, !model.findingProjects {
+                    Label(result, systemImage: "checkmark.circle.fill")
+                        .font(SettingsLayout.small)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        } footer: {
+            HelperText(
+                text: "Looks for project folders, including on your Desktop and in Documents, so you can open them "
+                    + "by name. macOS may ask you to allow it. Only folder names are read.")
         }
     }
 
