@@ -6,6 +6,9 @@ on:
 
 permissions:
   contents: write
+  # For the build provenance attestation below.
+  id-token: write
+  attestations: write
 
 jobs:
   source:
@@ -14,7 +17,15 @@ jobs:
       - uses: actions/checkout@v4
       - run: swift build -c release && swift test
       - run: scripts/package.sh
+      - run: scripts/sbom.sh
+      # Anyone can check that this zip was built by this workflow from this commit:
+      #   gh attestation verify hark-source.zip --repo <owner>/hark
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: build/hark-source.zip
       - uses: softprops/action-gh-release@v2
         with:
-          files: build/hark-source.zip
+          files: |
+            build/hark-source.zip
+            build/hark-sbom.cdx.json
           generate_release_notes: true

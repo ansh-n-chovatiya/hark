@@ -27,6 +27,14 @@ Useful reports include:
 - Clipboard text reaching any model, or the clipboard history being readable without the key.
 - The model key leaking out of the macOS Keychain or `~/.config/hark/config.json` (logs, history, overlays, crash output, the settings file).
 
+## Supply chain
+
+Hark has one third-party package, FluidAudio, pinned to an exact version (see `THIRD_PARTY_NOTICES.md`). Each
+release lists it in a CycloneDX software bill of materials (`hark-sbom.cdx.json`), and the source zip built by
+the release workflow carries a build provenance attestation: `gh attestation verify hark-source.zip --repo
+ansh-n-chovatiya/hark`. The prebuilt app comes with a SHA-256 checksum and is signed with a certificate made on
+the maintainer's Mac, not by Apple (see README).
+
 ## Supported versions
 
 Only the latest release on `main` is supported.

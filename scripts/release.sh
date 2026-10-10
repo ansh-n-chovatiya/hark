@@ -15,5 +15,6 @@ ditto -c -k --keepParent build/Hark.app "$archive"
 # The notes are the changelog section for this version.
 notes=$(awk -v v="${tag#v}" '$0 ~ "^## " v " " {found=1; next} /^## / {found=0} found' CHANGELOG.md)
 [ -n "$notes" ] || notes="See CHANGELOG.md."
-gh release create "$tag" "$archive" "$archive.sha256" --title "Hark $tag" --notes "$notes"
+scripts/sbom.sh
+gh release create "$tag" "$archive" "$archive.sha256" build/hark-sbom.cdx.json --title "Hark $tag" --notes "$notes"
 echo "published $tag"
