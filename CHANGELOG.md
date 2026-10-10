@@ -4,6 +4,12 @@ All notable changes are written here, newest first. Versions follow
 [Semantic Versioning](https://semver.org); while Hark is below 1.0, a minor bump may change
 behaviour.
 
+## Unreleased
+
+- "Open the standup file in TextEdit" and "open the projects folder in VS Code" by rule when the file or folder and
+  the app each match clearly.
+- Rules-only evaluation: 47 of 55 (85 percent); CI now fails below 84.
+
 ## 0.2.2 — 2026-10-10
 
 - Fixed a crash when removing a name from the Names list (a row removed while still in use read past the end of the

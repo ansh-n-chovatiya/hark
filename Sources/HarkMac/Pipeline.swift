@@ -348,6 +348,34 @@ public actor Pipeline {
 
     // MARK: Lists and "this"
 
+    /// A file or folder that clearly matches, opened in the app that clearly matches. It uses the same tool the
+    /// model does, which refuses scripts, installers and programs and never creates, moves or deletes anything.
+    /// Nil when either part is unsure, so the words may still mean something else (a tab in Chrome, say).
+    private func openFileInApp(_ command: Command, timings: inout Timings) async -> Outcome? {
+        guard command.verb == .open, let owner = command.owner, !command.query.isEmpty,
+              command.kinds.isEmpty || command.kinds.contains(.file) else { return nil }
+        let appRequest = Command(verb: .open, query: owner, kinds: [.app], raw: owner)
+        let (appRanking, appMatches) = await rankedMatches(for: appRequest)
+        guard let app = isClear(appMatches) ? appMatches.first?.item : obviousChoice(
+            among: appMatches, kinds: [.app], query: appRanking.query), app.kind == .app else { return nil }
+        let fileRequest = Command(verb: .open, query: command.query, kinds: [.file], raw: command.query)
+        let (fileRanking, fileMatches) = await rankedMatches(for: fileRequest)
+        guard let file = isClear(fileMatches) ? fileMatches.first?.item : obviousChoice(
+            among: fileMatches, kinds: [.file], query: fileRanking.query),
+              file.kind == .file, let path = file.payload["path"] else { return nil }
+        timings.verb = "openIn"
+        if dryRun { return .done("Would: Open \(file.title) in \(app.title) [file]") }
+        let started = clock.now
+        defer { timings.actMs = milliseconds(since: started) }
+        do {
+            let result = try await OpenPathTool().call(.object(["path": .string(path), "app": .string(app.title)]))
+            if let step = result.undo { undo.push(step) }
+            return .done(result.summary ?? result.output)
+        } catch {
+            return .failed(error.localizedDescription)
+        }
+    }
+
     private static func refersToTheFront(_ raw: String) -> Bool {
         let words = AppAction.tokens(raw)
         return words.contains("this") || words.contains("current") || words.starts(with: ["the", "front"])
@@ -753,6 +781,9 @@ public actor Pipeline {
             else { return .notUnderstood("There is no earlier copy to paste") }
             return await timed(&timings.actMs) { await act(.paste, on: previous) }
         }
+
+        // "Open the standup file in TextEdit", "open the projects folder in VS Code": by rule when both match clearly.
+        if let done = await openFileInApp(command, timings: &timings) { return done }
 
         // "Close this tab", "hide this app": the one in front, by rule.
         if command.query.isEmpty, command.owner == nil, command.kinds.count == 1, let kind = command.kinds.first,
