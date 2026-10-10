@@ -73,6 +73,8 @@ actor CLISession {
     func ask(_ text: String, timeout: TimeInterval) async throws -> String {
         await acquire()
         defer { release() }
+        // Dropped while waiting for its turn: nothing is sent, so nothing is left to answer later.
+        try Task.checkCancellation()
         try ensureRunning()
         guard let input, let reader, let process else { throw CLIModelError(message: "The tool is not running.") }
         let message = ["type": "user", "message": ["role": "user", "content": text]] as [String: Any]

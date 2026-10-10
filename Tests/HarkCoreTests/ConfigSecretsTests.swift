@@ -72,9 +72,17 @@ private final class FakeStore: SecretStore, @unchecked Sendable {
 
     @Test func clearingTheKeyRemovesItFromTheStore() {
         let store = FakeStore(holding: "secret-key")
-        _ = ConfigSecrets.forDisk(Config(), store: store)
+        _ = ConfigSecrets.forDisk(Config(), store: store, clearing: true)
         #expect(store.deleted)
         #expect(store.held == nil)
+    }
+
+    @Test func anEmptyKeyThatWasJustNotReadNeverRemovesTheStoredOne() {
+        let store = FakeStore(holding: "secret-key")
+        // A locked Keychain or an unreadable settings file gives an empty key; saving then must not delete it.
+        _ = ConfigSecrets.forDisk(Config(), store: store)
+        #expect(!store.deleted)
+        #expect(store.held == "secret-key")
     }
 
     @Test func aStoreThatSaysYesButKeepsNothingNeverLosesTheKey() {

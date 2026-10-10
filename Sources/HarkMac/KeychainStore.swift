@@ -66,8 +66,18 @@ public enum ConfigStore {
         return result.inMemory
     }
 
-    public static func save(_ config: Config, to url: URL = Paths.config) throws {
+    /// `clearing` is true only when the user has just emptied the key field.
+    public static func save(_ config: Config, to url: URL = Paths.config, clearing: Bool = false) throws {
         if skipsKeychain { return }
-        try ConfigSecrets.forDisk(config, store: secrets).save(to: url)
+        try ConfigSecrets.forDisk(config, store: secrets, clearing: clearing).save(to: url)
+    }
+
+    /// Puts an unreadable settings file aside before anything is written over it, so a typing mistake in a
+    /// hand edit never costs the settings. Kept once; an earlier copy is left alone.
+    public static func keepUnreadableFile(at url: URL = Paths.config) {
+        let aside = url.deletingLastPathComponent().appending(path: url.lastPathComponent + ".unreadable")
+        guard FileManager.default.fileExists(atPath: url.path), !FileManager.default.fileExists(atPath: aside.path) else { return }
+        try? FileManager.default.copyItem(at: url, to: aside)
+        try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: aside.path)
     }
 }

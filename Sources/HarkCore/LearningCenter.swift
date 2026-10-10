@@ -90,7 +90,11 @@ public final class LearningStore: Sendable {
         guard let data = try? Data(contentsOf: url) else { return LearningState() }
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        return (try? decoder.decode(LearningState.self, from: data)) ?? LearningState()
+        if let state = try? decoder.decode(LearningState.self, from: data) { return state }
+        // A file that cannot be read is put aside, not written over, so what it held can be recovered.
+        let aside = url.appendingPathExtension("unreadable")
+        if !FileManager.default.fileExists(atPath: aside.path) { try? FileManager.default.copyItem(at: url, to: aside) }
+        return LearningState()
     }
 }
 
@@ -129,7 +133,7 @@ public final class LearningCenter: Sendable {
     }
 
     public func snapshot(config: Config, now: Date = Date()) -> LearningSnapshot {
-        let state = reconcile(config)
+        let state = reconcile(config, now: now)
         let historyEntries = history.all()
         let known = Set(config.aliases.keys.map(Learner.normalize))
         let made = config.learns
@@ -158,9 +162,14 @@ public final class LearningCenter: Sendable {
 
     /// Drops the records of things the user has since taken out of the settings by hand, and does not offer
     /// them again: taking something out is an answer.
-    private func reconcile(_ config: Config) -> LearningState {
+    /// A record newer than this is never judged: the settings a refresh holds may predate the tap that made it.
+    private static let reconcileAfter: TimeInterval = 30
+
+    private func reconcile(_ config: Config, now: Date = Date()) -> LearningState {
         let state = store.load()
-        let gone = state.accepted.filter { !Self.isStillInPlace($0, config) }
+        let gone = state.accepted.filter {
+            now.timeIntervalSince($0.at) > Self.reconcileAfter && !Self.isStillInPlace($0, config)
+        }
         guard !gone.isEmpty else { return state }
         store.change { state in
             for record in gone {
@@ -256,9 +265,12 @@ public final class LearningCenter: Sendable {
     /// Forgets what was noticed. Names, pages and routines already accepted stay in the settings.
     public func deleteAll() {
         activity.deleteAll()
+        // Everything is forgotten, the phrases kept for the model review included. Only the fact that the first-run
+        // setup has been done stays, so it does not run again.
         store.change { state in
-            state.hidden = [:]
-            state.accepted = []
+            let setUp = state.setupDone
+            state = LearningState()
+            state.setupDone = setUp
         }
     }
 

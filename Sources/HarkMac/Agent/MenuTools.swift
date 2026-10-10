@@ -66,8 +66,14 @@ public struct ClickMenuTool: Tool {
     }
 
     public func kind(for arguments: JSONValue) -> ToolKind {
-        let path = MenuArguments.titles(arguments).joined(separator: " > ").lowercased()
-        return MenuSafety.destructiveMenuWords.contains(where: path.contains) ? .destructive : .action
+        let titles = MenuArguments.titles(arguments)
+        return Self.closesOrQuits(titles) || MenuAsk.needsYes(titles) ? .destructive : .action
+    }
+
+    /// The item closes or quits something. Hark's own rules for those ask first and are not bypassed by a menu.
+    static func closesOrQuits(_ path: [String]) -> Bool {
+        let text = path.joined(separator: " > ").lowercased()
+        return MenuSafety.destructiveMenuWords.contains(where: text.contains)
     }
 
     public func call(_ arguments: JSONValue) async throws -> ToolResult {

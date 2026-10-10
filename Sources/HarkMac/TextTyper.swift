@@ -14,15 +14,12 @@ public enum TextTyperError: LocalizedError {
     }
 }
 
-/// Kinds of focused element that cannot take typed text.
-private let notATextBox: Set<String> = [
-    kAXButtonRole, kAXCheckBoxRole, kAXRadioButtonRole, kAXImageRole, kAXStaticTextRole, kAXMenuItemRole,
-    kAXMenuBarItemRole, kAXToolbarRole, kAXWindowRole, kAXApplicationRole, kAXScrollAreaRole, "AXWebArea", "AXLink",
-]
+/// Kinds of focused element that take typed text.
+private let textRoles: Set<String> = [kAXTextFieldRole, kAXTextAreaRole, kAXComboBoxRole, "AXSearchField"]
 
 /// Types the user's own words into whatever has the keyboard focus, as key presses, so it works in
 /// any app. It sends only text: never Return, Tab, a shortcut or any other key, and it does not
-/// use the clipboard, so clipboard memory never sees dictated text.
+/// use the clipboard. (When there is nowhere to type, the caller copies the words to the clipboard instead.)
 public enum TextTyper {
     /// Long text goes in small pieces: some apps drop characters from a single large event.
     private static let piece = 16
@@ -63,10 +60,15 @@ public enum TextTyper {
         var subrole: CFTypeRef?
         _ = AXUIElementCopyAttributeValue(ref, kAXSubroleAttribute as CFString, &subrole)
         if (subrole as? String) == (kAXSecureTextFieldSubrole as String) { throw TextTyperError.passwordField }
-        // Typing at something that is not a text box does nothing, or worse: on a web page without a text box
-        // focused the letters are the page's keyboard shortcuts. Unknown kinds of element are still typed at.
+        // Only a text box is typed at. Anything else, such as a row or a page, would turn the letters into the
+        // page's single-key shortcuts (archive, delete, mark as spam). A custom editor that reports another
+        // role still has a text selection, which is what is looked for.
         var role: CFTypeRef?
         _ = AXUIElementCopyAttributeValue(ref, kAXRoleAttribute as CFString, &role)
-        if let role = role as? String, notATextBox.contains(role) { throw TextTyperError.nothingFocused }
+        if let role = role as? String, textRoles.contains(role) { return }
+        var selection: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(ref, kAXSelectedTextRangeAttribute as CFString, &selection) == .success else {
+            throw TextTyperError.nothingFocused
+        }
     }
 }

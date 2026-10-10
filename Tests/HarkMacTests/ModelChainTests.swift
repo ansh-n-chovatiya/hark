@@ -198,4 +198,37 @@ private struct FakeModel: ChatModel {
         config.cliModel = "sonnet"
         #expect(ModelSetup.entries(for: config, tools: tools).map(\.choice.label).contains("Claude Code (Sonnet)"))
     }
+
+    @Test func aModelStoppedByACancelledRequestIsNotMarkedAsFailed() async throws {
+        let health = ModelHealth()
+        let slow = FakeModel(behaviour: .slow("late", .seconds(30)))
+        let id = "slow-\(UUID())"
+        let chain = ModelChain(
+            choices: [ModelChoice(id: id, label: "Slow", model: slow, isStandIn: false)], headStart: .seconds(5),
+            health: health, isOnline: { true })
+        let request = Task { try await chain.reply(to: [], tools: []) }
+        try await Task.sleep(for: .milliseconds(200))
+        request.cancel()
+        _ = try? await request.value
+        #expect(health.status(of: id) == nil)
+    }
+
+    @Test func menuItemsThatCannotBePutBackAskFirst() {
+        #expect(MenuAsk.needsYes(["Message", "Send"]))
+        #expect(MenuAsk.needsYes(["File", "Replace\u{2026}"]))
+        #expect(MenuAsk.needsYes(["File", "Don't Save"]))
+        #expect(MenuAsk.needsYes(["File", "Rename\u{2026}"]))
+        #expect(MenuAsk.needsYes(["Post", "Publish"]))
+        #expect(!MenuAsk.needsYes(["File", "New Window"]))
+        #expect(!MenuAsk.needsYes(["File", "Print\u{2026}"]))
+        #expect(!MenuAsk.needsYes(["View", "Zoom In"]))
+    }
+
+    @Test func closingAndQuittingItemsAreRecognised() {
+        #expect(ClickMenuTool.closesOrQuits(["File", "Close Window"]))
+        #expect(ClickMenuTool.closesOrQuits(["Notes", "Quit Notes"]))
+        #expect(!ClickMenuTool.closesOrQuits(["File", "New Note"]))
+        let asking = ClickMenuTool().kind(for: .object(["app": .string("Mail"), "path": .array([.string("Message"), .string("Send")])]))
+        #expect(asking == .destructive)
+    }
 }

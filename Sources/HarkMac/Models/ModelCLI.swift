@@ -48,17 +48,24 @@ public enum ModelCLIs {
     }
 
     private static func inLoginShell(_ name: String) -> String? {
+        // The output goes to a file, not a pipe: a login script that leaves a program running (an ssh agent, say)
+        // would keep a pipe open and the read would never end.
+        let file = FileManager.default.temporaryDirectory.appending(path: "hark-which-\(UUID().uuidString)")
+        guard FileManager.default.createFile(atPath: file.path, contents: nil),
+              let sink = try? FileHandle(forWritingTo: file) else { return nil }
+        defer { try? FileManager.default.removeItem(at: file) }
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/bin/zsh")
         process.arguments = ["-lc", "command -v \(name)"]
-        let output = Pipe()
-        process.standardOutput = output
-        process.standardError = Pipe()
+        process.standardOutput = sink
+        process.standardError = FileHandle.nullDevice
+        process.standardInput = FileHandle.nullDevice
         guard (try? process.run()) != nil else { return nil }
         let deadline = Date().addingTimeInterval(4)
         while process.isRunning, Date() < deadline { Thread.sleep(forTimeInterval: 0.05) }
         if process.isRunning { process.terminate() }
-        let text = String(decoding: output.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+        try? sink.close()
+        let text = (try? String(contentsOf: file, encoding: .utf8)) ?? ""
         let path = text.split(separator: "\n").last.map(String.init)?.trimmingCharacters(in: .whitespaces) ?? ""
         return path.hasPrefix("/") && FileManager.default.isExecutableFile(atPath: path) ? path : nil
     }
@@ -72,6 +79,13 @@ struct CLIModelError: LocalizedError {
 /// Runs one program with the prompt on standard input. The arguments are an array, never a shell line,
 /// and it is stopped when it takes too long or when the request is cancelled (the model that lost a
 /// race).
+private final class CancelFlag: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value = false
+    var isSet: Bool { lock.withLock { value } }
+    func set() { lock.withLock { value = true } }
+}
+
 enum CLIProcess {
     private static let outputLimit = 400_000
 
@@ -87,21 +101,37 @@ enum CLIProcess {
         let extra = ["~/.local/bin", "/opt/homebrew/bin", "/usr/local/bin"].map { NSString(string: $0).expandingTildeInPath }
         environment["PATH"] = (extra + [environment["PATH"] ?? "/usr/bin:/bin"]).joined(separator: ":")
         process.environment = environment
-        let stdin = Pipe(), stdout = Pipe(), stderr = Pipe()
+        let stdin = Pipe(), stdout = Pipe()
+        // Errors go to a file, read only if the program fails: a pipe nobody reads would stall a chatty program.
+        let errorFile = FileManager.default.temporaryDirectory.appending(path: "hark-cli-\(UUID().uuidString).err")
+        FileManager.default.createFile(atPath: errorFile.path, contents: nil)
+        let stderr = try? FileHandle(forWritingTo: errorFile)
         process.standardInput = stdin
         process.standardOutput = stdout
-        process.standardError = stderr
+        process.standardError = stderr ?? FileHandle.nullDevice
+        let cancelled = CancelFlag()
 
         return try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<String, Error>) in
                 DispatchQueue.global(qos: .userInitiated).async {
+                    defer {
+                        try? stderr?.close()
+                        try? FileManager.default.removeItem(at: errorFile)
+                    }
+                    guard !cancelled.isSet else {
+                        continuation.resume(throwing: CancellationError())
+                        return
+                    }
                     do {
                         try process.run()
                     } catch {
                         continuation.resume(throwing: CLIModelError(message: "The tool could not be started: \(error.localizedDescription)"))
                         return
                     }
-                    stdin.fileHandleForWriting.write(Data(input.utf8))
+                    // Cancelled while it was starting: stop it now, as the cancel handler found nothing running.
+                    if cancelled.isSet { process.terminate() }
+                    // A program that has already stopped would make this write fail; that is its answer, below.
+                    try? stdin.fileHandleForWriting.write(contentsOf: Data(input.utf8))
                     try? stdin.fileHandleForWriting.close()
                     let timer = DispatchWorkItem { if process.isRunning { process.terminate() } }
                     DispatchQueue.global().asyncAfter(deadline: .now() + timeout, execute: timer)
@@ -110,10 +140,12 @@ enum CLIProcess {
                     process.waitUntilExit()
                     timer.cancel()
                     let text = String(decoding: data, as: UTF8.self)
-                    if process.terminationReason == .uncaughtSignal {
+                    if cancelled.isSet {
+                        continuation.resume(throwing: CancellationError())
+                    } else if process.terminationReason == .uncaughtSignal {
                         continuation.resume(throwing: CLIModelError(message: "The tool did not answer in time"))
                     } else if process.terminationStatus != 0, text.isEmpty {
-                        let error = String(decoding: stderr.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+                        let error = (try? String(contentsOf: errorFile, encoding: .utf8)) ?? ""
                         let line = error.split(whereSeparator: \.isNewline).first.map(String.init) ?? "it failed"
                         continuation.resume(throwing: CLIModelError(message: "The tool stopped: \(line.prefix(160))"))
                     } else {
@@ -122,6 +154,7 @@ enum CLIProcess {
                 }
             }
         } onCancel: {
+            cancelled.set()
             if process.isRunning { process.terminate() }
         }
     }

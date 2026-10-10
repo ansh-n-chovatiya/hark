@@ -165,6 +165,9 @@ public struct ModelChain: ChatModel {
                     last.set(order[index])
                     return reply
                 case .failed(let index, let message):
+                    // A model that stopped only because the request was cancelled (it timed out, or another
+                    // answered) did not fail, so it is not marked as resting.
+                    guard !Task.isCancelled else { throw CancellationError() }
                     finished.insert(index)
                     running -= 1
                     let (seconds, reason) = ModelHealth.cooldown(for: message)

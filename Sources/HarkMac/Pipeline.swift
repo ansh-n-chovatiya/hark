@@ -320,18 +320,30 @@ public actor Pipeline {
 
         let arguments: JSONValue = .object(["app": .string(appName), "path": .array(chosen.map(JSONValue.string))])
         let tool = ClickMenuTool()
-        // Closing and quitting are never done from a loose phrase: they ask first when a model chose
-        // them, and a rule has no one to ask.
-        guard tool.kind(for: arguments) != .destructive else {
+        // Closing and quitting are never done from a loose phrase: they have their own rules, which ask first.
+        guard !ClickMenuTool.closesOrQuits(chosen) else {
             return .notUnderstood("That would close or quit \(appName). Say it as its own command.")
         }
-        if dryRun { return .done("Would: Choose \(chosen.joined(separator: " > ")) in \(appName)") }
-        do {
-            let result = try await tool.call(arguments)
-            return .done(result.summary ?? result.output)
-        } catch {
-            return .failed(error.localizedDescription)
+        return await chooseMenuItem(chosen, in: appName, with: tool, arguments: arguments)
+    }
+
+    /// Chooses a menu item. Sending, posting, paying, replacing and the like ask first, as for any other path.
+    private func chooseMenuItem(
+        _ path: [String], in appName: String, with tool: ClickMenuTool, arguments: JSONValue
+    ) async -> Outcome {
+        let place = path.joined(separator: " > ")
+        if dryRun { return .done("Would: \(MenuAsk.needsYes(path) ? "Ask, then choose" : "Choose") \(place) in \(appName)") }
+        let run: @Sendable () async -> Outcome = {
+            do {
+                let result = try await tool.call(arguments)
+                return .done(result.summary ?? result.output)
+            } catch {
+                return .failed(error.localizedDescription)
+            }
         }
+        guard MenuAsk.needsYes(path) else { return await run() }
+        pending = .later(run)
+        return .confirm("Choose \(place) in \(appName)?")
     }
 
     // MARK: Lists and "this"
@@ -500,16 +512,9 @@ public actor Pipeline {
             return nil
         }
         let arguments: JSONValue = .object(["app": .string(appName), "path": .array(chosen.map(JSONValue.string))])
-        let tool = ClickMenuTool()
         // Closing and quitting have their own rules, which ask first.
-        guard tool.kind(for: arguments) != .destructive else { return nil }
-        if dryRun { return .done("Would: Choose \(chosen.joined(separator: " > ")) in \(appName)") }
-        do {
-            let result = try await tool.call(arguments)
-            return .done(result.summary ?? result.output)
-        } catch {
-            return .failed(error.localizedDescription)
-        }
+        guard !ClickMenuTool.closesOrQuits(chosen) else { return nil }
+        return await chooseMenuItem(chosen, in: appName, with: ClickMenuTool(), arguments: arguments)
     }
 
     private func frontWindowAction(_ transcript: String) async -> Outcome? {

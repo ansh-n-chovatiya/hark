@@ -71,7 +71,7 @@ These can be put back, usually with "undo that".
   letters: never Return, a shortcut or any other key, and never into a password field. It does not
   touch the clipboard, except when there is no text box to type into (or typing is not possible): then the
   words are copied there, so they are not lost, and you are told to paste them. They are never copied
-  when a password field is selected.
+  when a password field is selected. What is copied also lands in clipboard memory, like anything copied.
 - Run a routine you named outright, when none of its steps is marked as destructive. What a
   routine did is not put back by "undo that".
 

@@ -156,13 +156,14 @@ import Testing
         #expect(center.snapshot(config: config).accepted.count == 1)
         // The user deletes it in the Names tab.
         config.aliases = [:]
-        let after = center.snapshot(config: config)
+        let later = Date().addingTimeInterval(120)
+        let after = center.snapshot(config: config, now: later)
         #expect(after.accepted.isEmpty)
         #expect(after.suggestions.isEmpty)
         // Not even later, when the same words turn up from another source.
         let report = WrongLog(url: folder.appending(path: "w.jsonl"))
         report.append(WrongLog.Entry(at: Date(), heard: "open slak", did: "x", wanted: "open slack"))
-        #expect(center.snapshot(config: config).suggestions.isEmpty)
+        #expect(center.snapshot(config: config, now: later).suggestions.isEmpty)
     }
 
     @Test func wordsAlreadyAddedAreNotOfferedAgainFromAnotherSource() throws {
@@ -200,6 +201,36 @@ import Testing
             id: "routine:x", kind: .routine, title: "t", detail: "d", routineName: "morning", steps: ["open Slack"])
         center.accept(routine, into: &config)
         config.routines = []
-        #expect(center.snapshot(config: config).accepted.isEmpty)
+        #expect(center.snapshot(config: config, now: Date().addingTimeInterval(120)).accepted.isEmpty)
+    }
+
+    @Test func aRecordMadeJustNowIsNotJudgedAgainstOlderSettings() throws {
+        let center = center(try scratch())
+        var config = Config()
+        center.accept(alias, into: &config)
+        // A refresh that still holds the settings from before the tap must not forget the record.
+        let before = Config()
+        #expect(center.snapshot(config: before).accepted.count == 1)
+        #expect(center.snapshot(config: config).accepted.count == 1)
+    }
+
+    @Test func deletingWhatWasNoticedForgetsTheReviewPhrasesToo() throws {
+        let folder = try scratch()
+        let center = center(folder)
+        center.saveReview([Suggestion(id: "name:a>b", kind: .name, title: "t", detail: "d", said: "a", meant: "b")])
+        center.deleteAll()
+        #expect(center.snapshot(config: Config()).suggestions.isEmpty)
+        failed("open the slak app", in: folder)
+        // The review is due again straight away, because the time of the last one is forgotten as well.
+        #expect(center.reviewInput(config: Config(), now: Date()) == ["open the slak app"])
+    }
+
+    @Test func anUnreadableStateFileIsSetAsideNotWrittenOver() throws {
+        let folder = try scratch()
+        let file = folder.appending(path: "l.json")
+        try Data("{ not json".utf8).write(to: file)
+        let store = LearningStore(url: file)
+        store.change { $0.setupDone = true }
+        #expect(FileManager.default.fileExists(atPath: file.appendingPathExtension("unreadable").path))
     }
 }

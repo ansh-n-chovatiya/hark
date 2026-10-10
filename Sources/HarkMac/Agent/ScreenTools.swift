@@ -318,8 +318,10 @@ private enum ScreenSafety {
         "close", "closing", "quit", "exit", "logout", "signout", "shutdown", "restart", "send", "post", "submit",
         "publish", "share", "sharing", "pay", "buy", "purchas", "order", "confirm", "accept", "agree", "call",
         "join", "leave", "leaving", "block", "merge", "merging", "deploy", "run", "install", "approv", "reject",
+        // Putting something over something else, or renaming it, cannot be put back.
+        "replac", "overwrit", "renam",
     ]
-    private static let askFirstPhrases = ["log out", "sign out", "shut down"]
+    private static let askFirstPhrases = ["log out", "sign out", "shut down", "don't save", "dont save", "move to", "move item"]
 
     static func refuseDeletion(_ control: Control) throws {
         guard let word = deletionWord(in: control.wording) else { return }
@@ -339,6 +341,13 @@ private enum ScreenSafety {
 
     private static func words(in text: String) -> [String] {
         text.split(whereSeparator: { !$0.isLetter }).map(String.init)
+    }
+}
+
+/// Whether a menu item is about something that cannot be put back, so it asks first however it was chosen.
+enum MenuAsk {
+    static func needsYes(_ path: [String]) -> Bool {
+        ScreenSafety.asksFirst(path.joined(separator: " "))
     }
 }
 

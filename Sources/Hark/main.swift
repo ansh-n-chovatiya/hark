@@ -53,6 +53,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var dictationHotkey: Hotkey?
     private var isDictating = false
     private var taps = DictationTaps()
+    /// True from the moment dictation stops until its words are typed: the speech recorder is still in use.
+    private var dictationBusy = false
     private var tapWindow: Task<Void, Never>?
     private var dictationWatch: Task<Void, Never>?
     private var clipboardWatcher: ClipboardWatcher?
@@ -219,9 +221,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func apply(_ changed: Config) {
         let keyChanged = changed.hotkey != config.hotkey
+        // Only a key that was there and has just been emptied is removed from the Keychain.
+        let clearedKey = changed.modelKey.isEmpty && !config.modelKey.isEmpty
         config = changed
         do {
-            try ConfigStore.save(changed)
+            try ConfigStore.save(changed, clearing: clearedKey)
         } catch {
             overlay.show(.error("Your settings could not be saved: \(error.localizedDescription)"))
         }
@@ -254,7 +258,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         do {
             return try ConfigStore.load()
         } catch {
-            overlay.show(.error("The settings file could not be read, so defaults are in use"))
+            ConfigStore.keepUnreadableFile()
+            overlay.show(.error("The settings file could not be read, so defaults are in use. Your file was kept as config.json.unreadable."))
             return Config()
         }
     }
@@ -352,7 +357,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// The dictation key is held (talk while it is down), or tapped twice (hands-free, one tap to finish).
     private func dictationDown() {
-        guard !isHolding else { return }
+        guard !isHolding, !dictationBusy else { return }
         switch taps.keyDown(at: Date()) {
         case .start:
             beginDictation()
@@ -417,8 +422,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 return
             }
             if clock.now - started > Self.longestDictation {
-                dictationCancelled()
-                dictationIndicator.show(.error("Dictation stopped. Start again to continue."))
+                // Long enough: what was said is typed, not thrown away.
+                finishDictation()
                 return
             }
         }
@@ -428,11 +433,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func finishDictation() {
         guard isDictating else { return }
         isDictating = false
+        dictationBusy = true
         taps.reset()
         tapWindow?.cancel()
         dictationWatch?.cancel()
         dictationIndicator.show(.typing)
         Task {
+            defer { dictationBusy = false }
             do {
                 guard let heard = try await wordsFromRecording(timeout: .seconds(20)) else {
                     dictationIndicator.show(.error("I could not hear that. Please try again."))
@@ -471,14 +478,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         tapWindow?.cancel()
         dictationWatch?.cancel()
         dictationIndicator.show(.hidden)
+        // The recording to throw away is taken now: a tap a moment later starts a new one, which must not be ended.
+        let recording = capture
+        dictationBusy = true
         Task {
-            guard await capture?.value == true else { return }
+            defer { dictationBusy = false }
+            guard await recording?.value == true else { return }
             _ = try? await transcriber.finish()
         }
     }
 
     private func keyDown() {
-        guard !isDictating else { return }
+        guard !isDictating, !dictationBusy else { return }
         isHolding = true
         lastHeard = ""
         pressedAt = clock.now

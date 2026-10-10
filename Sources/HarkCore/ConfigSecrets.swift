@@ -26,10 +26,12 @@ public enum ConfigSecrets {
     }
 
     /// The settings as they go in the file: the key is kept in the store and left out. If the store
-    /// refuses, the settings are returned as they are, so the key is never lost.
-    public static func forDisk(_ config: Config, store: any SecretStore) -> Config {
+    /// refuses, the settings are returned as they are, so the key is never lost. An empty key removes the
+    /// stored one only when `clearing` says the user just cleared it; an empty key that merely was not
+    /// read (a locked Keychain, a settings file that could not be read) leaves the store alone.
+    public static func forDisk(_ config: Config, store: any SecretStore, clearing: Bool = false) -> Config {
         if config.modelKey.isEmpty {
-            store.delete()
+            if clearing { store.delete() }
             return config
         }
         guard keep(config.modelKey, in: store) else { return config }
