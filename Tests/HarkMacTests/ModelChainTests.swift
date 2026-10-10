@@ -124,25 +124,25 @@ private struct FakeModel: ChatModel {
         config.fallbackModel = "small"
         config.fallbackModelURL = "http://127.0.0.1:11434/v1"
         config.cli = "off"
-        let labels = ModelSetup.make(for: config).chain?.choices.map(\.label)
+        let labels = ModelSetup.make(for: config, tools: []).chain?.choices.map(\.label)
         #expect(labels == ["Online model", "Model on this Mac"])
         config.useModel = false
-        #expect(ModelSetup.make(for: config).chain == nil)
+        #expect(ModelSetup.make(for: config, tools: []).chain == nil)
     }
 
     @Test func theUsersOrderAndOffSwitchesAreHonoured() {
         var config = Config(model: "online-model", modelURL: "https://models.example.com/v1", modelKey: "key")
         config.fallbackModel = "small"
         config.fallbackModelURL = "http://127.0.0.1:11434/v1"
-        #expect(ModelSetup.entries(for: config).map(\.key) == ["online", "local"])
+        #expect(ModelSetup.entries(for: config, tools: []).map(\.key) == ["online", "local"])
         config.modelOrder = ["local", "online"]
-        #expect(ModelSetup.entries(for: config).map(\.key) == ["local", "online"])
-        #expect(ModelSetup.make(for: config).chain?.choices.map(\.label) == ["Model on this Mac", "Online model"])
+        #expect(ModelSetup.entries(for: config, tools: []).map(\.key) == ["local", "online"])
+        #expect(ModelSetup.make(for: config, tools: []).chain?.choices.map(\.label) == ["Model on this Mac", "Online model"])
         config.modelsOff = ["online"]
-        #expect(ModelSetup.entries(for: config).map(\.isOn) == [true, false])
-        #expect(ModelSetup.make(for: config).chain?.choices.map(\.label) == ["Model on this Mac"])
+        #expect(ModelSetup.entries(for: config, tools: []).map(\.isOn) == [true, false])
+        #expect(ModelSetup.make(for: config, tools: []).chain?.choices.map(\.label) == ["Model on this Mac"])
         config.modelsOff = ["online", "local"]
-        #expect(ModelSetup.make(for: config).chain == nil)
+        #expect(ModelSetup.make(for: config, tools: []).chain == nil)
     }
 
     @Test func aModelNotPlacedYetGoesLastInTheUsualOrder() {
@@ -150,7 +150,7 @@ private struct FakeModel: ChatModel {
         config.fallbackModel = "small"
         config.fallbackModelURL = "http://127.0.0.1:11434/v1"
         config.modelOrder = ["local"]
-        #expect(ModelSetup.entries(for: config).map(\.key) == ["local", "online"])
+        #expect(ModelSetup.entries(for: config, tools: []).map(\.key) == ["local", "online"])
     }
 
     @Test func theOrderAndSwitchesSurviveSaving() throws {
@@ -174,10 +174,9 @@ private struct FakeModel: ChatModel {
     }
 
     @Test func theOrderShowsWhichToolModelIsUsed() {
-        ModelCLIs.setFound([ModelCLI(name: "claude", label: "Claude Code", path: "/usr/local/bin/claude")])
-        defer { ModelCLIs.setFound([]) }
+        let tools = [ModelCLI(name: "claude", label: "Claude Code", path: "/usr/local/bin/claude")]
         var config = Config(model: "online-model", modelURL: "https://models.example.com/v1", modelKey: "key")
         config.cliModel = "sonnet"
-        #expect(ModelSetup.entries(for: config).map(\.choice.label).contains("Claude Code (Sonnet)"))
+        #expect(ModelSetup.entries(for: config, tools: tools).map(\.choice.label).contains("Claude Code (Sonnet)"))
     }
 }

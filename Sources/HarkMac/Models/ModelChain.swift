@@ -176,7 +176,7 @@ public enum ModelSetup {
     }
 
     /// Every model that could be used, in the order they would be tried, with whether each is turned on.
-    public static func entries(for config: Config) -> [Entry] {
+    public static func entries(for config: Config, tools: [ModelCLI] = ModelCLIs.found) -> [Entry] {
         var found: [(key: String, choice: ModelChoice)] = []
         var seen = Set<String>()
         func add(_ key: String, _ id: String, _ label: String, _ model: any ChatModel, standIn: Bool) {
@@ -187,7 +187,7 @@ public enum ModelSetup {
             add("online", "openai:\(config.modelURL)#\(config.model)", main.isLocal ? "Model on this Mac" : "Online model", main, standIn: false)
         }
         if config.cli != "off" {
-            for tool in ModelCLIs.found {
+            for tool in tools {
                 add("cli:\(tool.name)", "cli:\(tool.name)", "\(tool.label) (\(config.cliModel.capitalized))",
                     CLIChatModel(tool, model: config.cliModel), standIn: false)
             }
@@ -205,9 +205,11 @@ public enum ModelSetup {
         return ordered.map { Entry(key: $0.key, choice: $0.choice, isOn: !config.modelsOff.contains($0.key)) }
     }
 
-    public static func make(for config: Config, headStart: Duration = .milliseconds(3500)) -> Result {
+    public static func make(
+        for config: Config, headStart: Duration = .milliseconds(3500), tools: [ModelCLI] = ModelCLIs.found
+    ) -> Result {
         guard config.useModel else { return Result(chain: nil, local: nil) }
-        let on = entries(for: config).filter(\.isOn)
+        let on = entries(for: config, tools: tools).filter(\.isOn)
         let local = on.compactMap { $0.choice.model as? OpenAIChatModel }.first { $0.isLocal }
         return Result(chain: on.isEmpty ? nil : ModelChain(choices: on.map(\.choice), headStart: headStart), local: local)
     }
