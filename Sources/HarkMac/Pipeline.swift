@@ -349,6 +349,33 @@ public actor Pipeline {
         return inFront.max { ($0.lastUsed ?? .distantPast) < ($1.lastUsed ?? .distantPast) }
     }
 
+    private static let exceptLeads = ["everything except ", "all except ", "all apps except ", "all the apps except ", "all other apps except ", "all windows except "]
+
+    /// Hides every running app but the ones named. Nil unless each name matches clearly and the phrase is
+    /// exactly that, so nothing is hidden on a guess.
+    private func hideAllExcept(_ command: Command, timings: inout Timings) async -> Outcome? {
+        guard let lead = Self.exceptLeads.first(where: { command.query.hasPrefix($0) }) else { return nil }
+        let names = command.query.dropFirst(lead.count).split(separator: " ").split(whereSeparator: { $0 == "and" })
+            .map { $0.joined(separator: " ") }
+        guard !names.isEmpty, names.count <= Self.mostInAList, names.allSatisfy({ !$0.isEmpty }) else { return nil }
+        var keep = Set<String>()
+        for name in names {
+            let single = Command(verb: .open, query: name, kinds: [.app], raw: name)
+            let (ranking, matches) = await rankedMatches(for: single)
+            guard let item = isClear(matches) ? matches.first?.item : obviousChoice(
+                among: matches, kinds: ranking.kinds, query: ranking.query) else { return nil }
+            keep.insert(item.id)
+        }
+        let apps = await openItems().filter { $0.kind == .app && !keep.contains($0.id) }
+        guard !apps.isEmpty else { return .done("Nothing else is open to hide") }
+        timings.verb = Verb.hide.rawValue
+        let started = clock.now
+        defer { timings.actMs = milliseconds(since: started) }
+        let outcome = await run(apps, with: .hide)
+        if case .done = outcome, !dryRun { return .done("Hid \(apps.count) \(apps.count == 1 ? "app" : "apps")") }
+        return outcome
+    }
+
     private static let listVerbs: Set<Verb> = [.open, .hide, .quit, .close]
     private static let mostInAList = 5
 
@@ -698,6 +725,9 @@ public actor Pipeline {
            let item = await frontItem(of: kind) {
             return await timed(&timings.actMs) { await act(command.verb, on: item) }
         }
+
+        // "Hide everything except Warp": hiding can be put back, so it is done by rule.
+        if command.verb == .hide, let done = await hideAllExcept(command, timings: &timings) { return done }
 
         // "Open Slack and Linear", "quit Slack and Linear": a short list of things that each match clearly.
         if let done = await actOnList(command, timings: &timings) { return done }
