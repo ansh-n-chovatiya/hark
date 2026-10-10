@@ -60,7 +60,17 @@ public enum DictationState: Sendable, Equatable {
         }
         model.state = state
         place()
-        panel.orderFrontRegardless()
+        if !panel.isVisible {
+            // A short fade so it settles in instead of popping.
+            panel.alphaValue = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 1 : 0
+            panel.orderFrontRegardless()
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.15
+                panel.animator().alphaValue = 1
+            }
+        } else {
+            panel.orderFrontRegardless()
+        }
         switch state {
         case .typed: hide(after: Self.doneStay)
         case .error: hide(after: Self.errorStay)
@@ -124,17 +134,25 @@ struct DictationPill: View {
 
     var body: some View {
         if model.state != .hidden {
-            HStack(spacing: 10) {
+            HStack(spacing: 12) {
                 content
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 9)
-            .background(HUDMaterial().clipShape(Capsule()))
-            .overlay(Capsule().strokeBorder(.primary.opacity(0.1), lineWidth: 1))
-            .padding(6)
+            .padding(.leading, 16)
+            .padding(.trailing, trailing)
+            .frame(minHeight: 40)
+            // A fixed dark pill reads the same over any window, light or dark, where a see-through
+            // one took on the colour of whatever was behind it.
+            .background(Capsule().fill(Color(white: 0.09, opacity: 0.94)))
+            .overlay(Capsule().strokeBorder(.white.opacity(0.14), lineWidth: 1))
+            .shadow(color: .black.opacity(0.35), radius: 10, y: 4)
+            .environment(\.colorScheme, .dark)
+            .padding(10)
             .fixedSize()
         }
     }
+
+    /// Less room on the right when the cancel button sits there.
+    private var trailing: CGFloat { model.state == .listening ? 8 : 16 }
 
     @ViewBuilder private var content: some View {
         switch model.state {
@@ -142,33 +160,49 @@ struct DictationPill: View {
             EmptyView()
         case .listening:
             LevelBars(animates: !reduceMotion)
-                .frame(width: 44, height: 18)
+                .frame(width: 52, height: 22)
                 .accessibilityLabel("Dictating")
-            Button {
-                model.onCancel?()
-            } label: {
-                Image(systemName: "xmark.circle.fill").font(.system(size: 16)).foregroundStyle(.secondary)
-            }
-            .buttonStyle(.plain)
-            .help("Cancel")
-            .accessibilityLabel("Cancel dictation")
+            CancelButton { model.onCancel?() }
         case .typing:
             ProgressView().controlSize(.small).accessibilityHidden(true)
             label("Typing\u{2026}")
         case .typed(let words):
-            Image(systemName: "checkmark.circle.fill").foregroundStyle(.green).accessibilityHidden(true)
+            Image(systemName: "checkmark.circle.fill").font(.system(size: 16)).foregroundStyle(.green)
+                .accessibilityHidden(true)
             label("Typed \(words) \(words == 1 ? "word" : "words")")
         case .error(let message):
-            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange).accessibilityHidden(true)
-            label(message).frame(maxWidth: 260, alignment: .leading)
+            Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 16)).foregroundStyle(.orange)
+                .accessibilityHidden(true)
+            label(message).frame(maxWidth: 260, alignment: .leading).padding(.vertical, 8)
         }
     }
 
     private func label(_ text: String) -> some View {
         Text(text)
             .font(.system(size: 13, weight: .medium))
+            .foregroundStyle(.white)
             .lineLimit(3)
             .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+private struct CancelButton: View {
+    let action: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "xmark")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(.white.opacity(isHovered ? 1 : 0.75))
+                .frame(width: 24, height: 24)
+                .background(Circle().fill(.white.opacity(isHovered ? 0.24 : 0.13)))
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+        .help("Cancel")
+        .accessibilityLabel("Cancel dictation")
     }
 }
 
@@ -184,10 +218,10 @@ private struct LevelBars: NSViewRepresentable {
 }
 
 private final class LevelBarsView: NSView {
-    private static let count = 7
+    private static let count = 9
     /// Taller in the middle, so it reads as a voice and not a meter.
-    private static let weights: [CGFloat] = [0.45, 0.7, 0.9, 1.0, 0.9, 0.7, 0.45]
-    private static let barWidth: CGFloat = 3
+    private static let weights: [CGFloat] = [0.35, 0.55, 0.75, 0.92, 1.0, 0.92, 0.75, 0.55, 0.35]
+    private static let barWidth: CGFloat = 3.5
     private static let shortest: CGFloat = 3
 
     var animates = true
@@ -233,7 +267,7 @@ private final class LevelBarsView: NSView {
 
     private func recolor() {
         effectiveAppearance.performAsCurrentDrawingAppearance {
-            for bar in bars { bar.backgroundColor = NSColor.controlAccentColor.cgColor }
+            for bar in bars { bar.backgroundColor = NSColor.white.withAlphaComponent(0.95).cgColor }
         }
     }
 
