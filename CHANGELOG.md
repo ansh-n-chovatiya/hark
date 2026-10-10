@@ -4,6 +4,13 @@ All notable changes are written here, newest first. Versions follow
 [Semantic Versioning](https://semver.org); while Hark is below 1.0, a minor bump may change
 behaviour.
 
+## 0.2.2 — 2026-10-10
+
+- Fixed a crash when removing a name from the Names list (a row removed while still in use read past the end of the
+  list).
+- The AI tool is only started when a model before it is resting, instead of on every key press.
+- Settings: "via Claude Code" and the like are shown in History for each command a model answered.
+
 ## 0.2.1 — 2026-10-10
 
 - Claude Code as a backup model is now a running process, started when you press the key: about 1.9 s per
