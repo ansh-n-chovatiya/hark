@@ -13,6 +13,7 @@ behaviour.
   unread Keychain never deletes your key; a cancelled model is not marked as failed; several races and hangs.
 - A software bill of materials and build provenance for releases; `scripts/uninstall.sh`.
 - Names Hark suggests keep only the thing named and are proven to help before they are offered.
+
 **Window layout and more rules**
 
 - Window layout by rule: "put Chrome on the left and VS Code on the right", "make this window full size".
