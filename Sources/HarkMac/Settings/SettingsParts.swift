@@ -66,3 +66,17 @@ struct EmptyState: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
+
+/// A binding to one row of a list, found by its identity each time it is read, not by its position. A row that is
+/// removed while something still holds its binding (a text box giving up focus as the row goes) reads as the
+/// placeholder and ignores writes, where a binding by position would crash on an index that no longer exists.
+enum RowBinding {
+    static func make<Row: Identifiable>(_ rows: Binding<[Row]>, id: Row.ID, placeholder: Row) -> Binding<Row> {
+        Binding(
+            get: { rows.wrappedValue.first { $0.id == id } ?? placeholder },
+            set: { newValue in
+                guard let index = rows.wrappedValue.firstIndex(where: { $0.id == id }) else { return }
+                rows.wrappedValue[index] = newValue
+            })
+    }
+}

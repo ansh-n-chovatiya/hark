@@ -97,8 +97,9 @@ private struct NamePairs: View {
             } else {
                 columnTitles
             }
-            ForEach($rows) { $row in
-                pairRow($row)
+            // Rows are bound by identity, not position: see RowBinding.
+            ForEach(rows) { row in
+                pairRow(RowBinding.make($rows, id: row.id, placeholder: row))
             }
             Button(words.addTitle, systemImage: "plus") {
                 focus.wrappedValue = .said(onAdd())

@@ -232,3 +232,36 @@ private struct FakeModel: ChatModel {
         #expect(asking == .destructive)
     }
 }
+
+import SwiftUI
+
+@Suite struct RowBindingTests {
+    private struct Row: Identifiable, Equatable {
+        let id = UUID()
+        var text: String
+    }
+
+    @Test func aRemovedRowReadsAsThePlaceholderAndIgnoresWritesInsteadOfCrashing() {
+        var list = [Row(text: "a"), Row(text: "b"), Row(text: "c")]
+        let rows = Binding(get: { list }, set: { list = $0 })
+        let target = list[2]
+        let binding = RowBinding.make(rows, id: target.id, placeholder: target)
+        #expect(binding.wrappedValue.text == "c")
+        binding.wrappedValue.text = "changed"
+        #expect(list[2].text == "changed")
+        // The row goes while its binding is still held: a binding by position would read past the end.
+        list.removeAll { $0.id == target.id }
+        #expect(binding.wrappedValue.text == "c")
+        binding.wrappedValue.text = "ignored"
+        #expect(list.map(\.text) == ["a", "b"])
+    }
+
+    @Test func otherRowsKeepTheirOwnBindingsAfterARemoval() {
+        var list = [Row(text: "a"), Row(text: "b"), Row(text: "c")]
+        let rows = Binding(get: { list }, set: { list = $0 })
+        let last = RowBinding.make(rows, id: list[2].id, placeholder: list[2])
+        list.remove(at: 0)
+        last.wrappedValue.text = "still c"
+        #expect(list.map(\.text) == ["b", "still c"])
+    }
+}
