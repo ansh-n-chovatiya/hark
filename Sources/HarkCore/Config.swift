@@ -49,6 +49,8 @@ public struct Config: Codable, Sendable, Equatable {
     /// "auto" uses AI command-line tools already on the Mac (Claude Code) when the other models fail or are
     /// missing; "off" never does.
     public var cli: String
+    /// Which model the AI command-line tool uses: "haiku" (the fastest), "sonnet" or "opus", or a full model name.
+    public var cliModel: String
     /// The order models are tried in, as keys: "online", "cli:claude", "local". Keys left out go last, in the
     /// usual order. Empty means the usual order.
     public var modelOrder: [String]
@@ -79,6 +81,7 @@ public struct Config: Codable, Sendable, Equatable {
         learns: Bool = true,
         reviewsFailures: Bool = true,
         cli: String = "auto",
+        cliModel: String = "haiku",
         modelOrder: [String] = [],
         modelsOff: [String] = [],
         searchFolders: [String] = [],
@@ -100,6 +103,7 @@ public struct Config: Codable, Sendable, Equatable {
         self.learns = learns
         self.reviewsFailures = reviewsFailures
         self.cli = cli
+        self.cliModel = cliModel
         self.modelOrder = modelOrder
         self.modelsOff = modelsOff
         self.searchFolders = searchFolders
@@ -126,6 +130,7 @@ public struct Config: Codable, Sendable, Equatable {
         learns = try values.decodeIfPresent(Bool.self, forKey: .learns) ?? defaults.learns
         reviewsFailures = try values.decodeIfPresent(Bool.self, forKey: .reviewsFailures) ?? defaults.reviewsFailures
         cli = try values.decodeIfPresent(String.self, forKey: .cli) ?? defaults.cli
+        cliModel = try values.decodeIfPresent(String.self, forKey: .cliModel) ?? defaults.cliModel
         modelOrder = try values.decodeIfPresent([String].self, forKey: .modelOrder) ?? defaults.modelOrder
         modelsOff = try values.decodeIfPresent([String].self, forKey: .modelsOff) ?? defaults.modelsOff
         searchFolders = try values.decodeIfPresent([String].self, forKey: .searchFolders) ?? defaults.searchFolders

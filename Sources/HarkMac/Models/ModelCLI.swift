@@ -22,6 +22,11 @@ public enum ModelCLIs {
     /// What the last `discover()` found. Empty until it has run.
     public static var found: [ModelCLI] { cache.withLock { $0 } ?? [] }
 
+    /// For the settings previews, which have no tool installed to find.
+    static func setFound(_ tools: [ModelCLI]) {
+        cache.withLock { $0 = tools }
+    }
+
     /// Looks in the usual install folders, then asks a login shell, which knows the user's own PATH. Run
     /// it once when Hark starts, away from the main thread.
     @discardableResult

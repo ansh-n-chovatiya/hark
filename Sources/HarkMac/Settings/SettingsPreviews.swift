@@ -164,6 +164,7 @@ extension SettingsModel {
         model.history = history.reversed()
         model.modelLookup = .found(["careful-model", "fast-model", "quick-model"])
         model.localLookup = .found(["qwen2.5:7b", "llama3.2:3b"])
+        ModelCLIs.setFound([ModelCLI(name: "claude", label: "Claude Code", path: "/usr/local/bin/claude")])
         model.learned = LearningSnapshot(
             suggestions: [
                 Suggestion(

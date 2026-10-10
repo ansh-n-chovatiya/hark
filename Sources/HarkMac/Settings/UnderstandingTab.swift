@@ -12,6 +12,7 @@ struct UnderstandingTab: View {
             if model.config.useModel {
                 onlineModel
                 modelOnThisMac
+                if let tool = ModelCLIs.found.first { commandLineTool(tool) }
                 aiTools
             }
         }
@@ -111,6 +112,35 @@ struct UnderstandingTab: View {
                 if let chosen { model.chooseProvider(chosen) }
             }
         )
+    }
+
+    /// The AI command-line tool found on this Mac, and which of its models Hark asks.
+    private func commandLineTool(_ tool: ModelCLI) -> some View {
+        Section {
+            SettingsSelect(
+                label: "Model",
+                options: Self.toolModels(including: model.config.cliModel),
+                selection: Binding(
+                    get: { model.config.cliModel },
+                    set: { name in model.update { $0.cliModel = name } }))
+        } header: {
+            Text(tool.label)
+        } footer: {
+            HelperText(
+                text: "Found on this Mac. Hark starts it for each question with its own tools off, so it can only answer in "
+                    + "words. Larger models usually take longer to answer.")
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    /// The tool's own short names, with a star on the fastest, and a model typed into the settings file by hand.
+    private static func toolModels(including current: String) -> [SelectOption<String>] {
+        let known = [
+            SelectOption(value: "haiku", title: "Haiku", subtitle: "Fastest", trailingSymbol: "star.fill"),
+            SelectOption(value: "sonnet", title: "Sonnet", subtitle: "Balanced"),
+            SelectOption(value: "opus", title: "Opus", subtitle: "Most capable"),
+        ]
+        return known.contains { $0.value == current } ? known : known + [SelectOption(value: current, title: current)]
     }
 
     /// The order models are tried in, which are turned on, and which is resting after a failure.

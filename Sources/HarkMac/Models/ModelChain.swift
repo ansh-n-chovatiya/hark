@@ -187,7 +187,10 @@ public enum ModelSetup {
             add("online", "openai:\(config.modelURL)#\(config.model)", main.isLocal ? "Model on this Mac" : "Online model", main, standIn: false)
         }
         if config.cli != "off" {
-            for tool in ModelCLIs.found { add("cli:\(tool.name)", "cli:\(tool.name)", tool.label, CLIChatModel(tool), standIn: false) }
+            for tool in ModelCLIs.found {
+                add("cli:\(tool.name)", "cli:\(tool.name)", "\(tool.label) (\(config.cliModel.capitalized))",
+                    CLIChatModel(tool, model: config.cliModel), standIn: false)
+            }
         }
         if !config.fallbackModel.isEmpty,
            let fallback = OpenAIChatModel(url: config.fallbackModelURL, models: config.fallbackModel, key: "") {

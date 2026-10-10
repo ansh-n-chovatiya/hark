@@ -163,4 +163,21 @@ private struct FakeModel: ChatModel {
         #expect(loaded.modelsOff == ["cli:claude"])
         #expect(try JSONDecoder().decode(Config.self, from: Data("{}".utf8)).modelOrder.isEmpty)
     }
+
+    @Test func theToolsModelIsHaikuByDefaultAndSurvivesSaving() throws {
+        #expect(Config().cliModel == "haiku")
+        var config = Config()
+        config.cliModel = "sonnet"
+        let loaded = try JSONDecoder().decode(Config.self, from: JSONEncoder().encode(config))
+        #expect(loaded.cliModel == "sonnet")
+        #expect(try JSONDecoder().decode(Config.self, from: Data("{}".utf8)).cliModel == "haiku")
+    }
+
+    @Test func theOrderShowsWhichToolModelIsUsed() {
+        ModelCLIs.setFound([ModelCLI(name: "claude", label: "Claude Code", path: "/usr/local/bin/claude")])
+        defer { ModelCLIs.setFound([]) }
+        var config = Config(model: "online-model", modelURL: "https://models.example.com/v1", modelKey: "key")
+        config.cliModel = "sonnet"
+        #expect(ModelSetup.entries(for: config).map(\.choice.label).contains("Claude Code (Sonnet)"))
+    }
 }

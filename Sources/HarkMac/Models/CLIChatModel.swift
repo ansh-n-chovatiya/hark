@@ -9,9 +9,15 @@ public struct CLIChatModel: ChatModel {
     private static let folder = FileManager.default.temporaryDirectory.appending(path: "hark-cli", directoryHint: .isDirectory)
 
     private let tool: ModelCLI
+    private let model: String
 
-    public init(_ tool: ModelCLI) {
+    /// `model` is a short name ("haiku", "sonnet", "opus") or a full model name. Anything that is not made of
+    /// plain name characters is replaced by Haiku, so a stray setting can never become an option for the tool.
+    public init(_ tool: ModelCLI, model: String = "haiku") {
         self.tool = tool
+        let plain = !model.isEmpty && model.count <= 60 && !model.hasPrefix("-")
+            && model.allSatisfy { $0.isLetter || $0.isNumber || ".-_".contains($0) }
+        self.model = plain ? model : "haiku"
     }
 
     public func reply(to messages: [ChatMessage], tools: [ToolSpec]) async throws -> ChatReply {
@@ -22,14 +28,14 @@ public struct CLIChatModel: ChatModel {
             for case .user(let text) in messages { question = text }
             let system = CLIToolProtocol.extraSystem(from: messages) ?? "Answer briefly."
             let output = try await CLIProcess.run(
-                tool.path, arguments: Self.arguments(for: tool, system: system), input: question, timeout: Self.timeout,
+                tool.path, arguments: arguments(system: system), input: question, timeout: Self.timeout,
                 folder: Self.folder)
             return ChatReply(text: try Self.answer(from: output), calls: [])
         }
         let system = CLIToolProtocol.system(extra: CLIToolProtocol.extraSystem(from: messages))
         let prompt = CLIToolProtocol.prompt(messages: messages, tools: tools)
         let output = try await CLIProcess.run(
-            tool.path, arguments: Self.arguments(for: tool, system: system), input: prompt, timeout: Self.timeout,
+            tool.path, arguments: arguments(system: system), input: prompt, timeout: Self.timeout,
             folder: Self.folder)
         let answer = try Self.answer(from: output)
         guard let reply = CLIToolProtocol.parse(answer, tools: tools) else {
@@ -39,9 +45,9 @@ public struct CLIChatModel: ChatModel {
     }
 
     /// Claude Code, text only: no tools, no settings files, no extensions, nothing saved.
-    private static func arguments(for tool: ModelCLI, system: String) -> [String] {
+    private func arguments(system: String) -> [String] {
         ["-p", "--tools", "", "--setting-sources", "", "--strict-mcp-config", "--disable-slash-commands",
-         "--no-session-persistence", "--output-format", "json", "--model", "haiku", "--effort", "low",
+         "--no-session-persistence", "--output-format", "json", "--model", model, "--effort", "low",
          "--system-prompt", system]
     }
 
