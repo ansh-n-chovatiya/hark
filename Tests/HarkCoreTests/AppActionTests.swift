@@ -52,7 +52,15 @@ import Testing
             return
         }
         #expect(options.count >= 2)
-        #expect(options.allSatisfy { $0.last?.hasPrefix("New") == true })
+        #expect(options.contains(["File", "New Note"]))
+    }
+
+    @Test func aShorterMatchingTitleBeatsALongerOne() {
+        let finder: [[String]] = [
+            ["File", "New Finder Window"], ["Go", "Enclosing Folder in New Window"],
+            ["Finder", "Services", "New Warp Window Here"], ["File", "New Tab"],
+        ]
+        #expect(AppAction.choose("new window", among: finder) == .item(["File", "New Finder Window"]))
     }
 
     @Test func nothingLikeItMeansNone() {

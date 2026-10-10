@@ -90,6 +90,14 @@ item is greyed out it tells you. It never chooses items about closing, quitting 
 in a terminal. Only what is in the app's menus is reachable this way; a button that exists only inside a
 window still goes to the model.
 
+**Working in the app in front.** With an app already open you do not need to name it. "New window",
+"print this" or "zoom in" choose the matching menu item. "Click send", "open my personal DM" or "go to
+the calendar" press the button, tab or list item whose label fits. Hark does this by rule and only
+when one thing clearly fits; otherwise it falls back to the model as before. Anything about sending,
+posting, paying or leaving asks first, and anything about deleting is refused. How much of a window Hark
+can see depends on the app: Mac apps show everything, while apps built on web technology (Teams, Slack,
+VS Code) show what they choose to, and some show little.
+
 **Learning.** Hark sets itself up and offers shortcuts so you do not have to fill in the Folders, Names,
 Web pages and Routines screens by hand. On the first run it looks for your project folders. After
 that it notices which apps and websites you open together, which sites you visit on many days, and

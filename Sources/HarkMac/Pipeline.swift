@@ -10,6 +10,8 @@ public actor Pipeline {
         case agent(Agent)
         case routine(RoutineCall)
         case setup(Routine)
+        /// Something a rule chose that needs a yes first. "1" runs it, anything else drops it.
+        case later(@Sendable () async -> Outcome)
     }
 
     public private(set) var lastTimings: Timings?
@@ -247,7 +249,7 @@ public actor Pipeline {
         } else if let command {
             outcome = await handle(command, timings: &timings)
         } else {
-            outcome = .notUnderstood("I did not catch a command")
+            outcome = await frontFallback(asked.command, timings: &timings) ?? .notUnderstood("I did not catch a command")
         }
 
         timings.totalMs = transcribeMs + milliseconds(since: started)
@@ -299,32 +301,18 @@ public actor Pipeline {
             try? await Task.sleep(for: .milliseconds(100))
         }
         guard !entries.isEmpty else { return .notUnderstood("Opened \(appName), but its menus could not be read.") }
-        let paths = entries.map(\.path)
-        let greyedOut = Set(entries.filter { !$0.enabled }.map { $0.path.joined(separator: " > ") })
-
-        func isGreyedOut(_ path: [String]) -> Bool { greyedOut.contains(path.joined(separator: " > ")) }
-        func greyedMessage(_ path: [String]) -> Outcome {
-            .notUnderstood("\u{201C}\(path.last ?? "")\u{201D} is greyed out in \(appName) right now.")
-        }
-
-        // Greyed-out items count only when one of them is the clear best fit: then it is said so, instead
-        // of quietly doing something else. They never make a working item look ambiguous.
-        var chosen: [String]
-        switch AppAction.choose(request.action, among: paths) {
-        case .none:
-            return .notUnderstood("Opened \(appName). It has no menu item like \u{201C}\(request.action)\u{201D}.")
+        let chosen: [String]
+        switch pickMenuItem(request.action, among: entries, strict: false) {
         case .item(let path):
             chosen = path
+        case .greyedOut(let path):
+            return .notUnderstood("\u{201C}\(path.last ?? "")\u{201D} is greyed out in \(appName) right now.")
         case .unsure(let options):
-            if let first = options.first, isGreyedOut(first) { return greyedMessage(first) }
-            let live = options.filter { !isGreyedOut($0) }
-            guard live.count == 1, let only = live.first else {
-                let names = live.map { $0.joined(separator: " > ") }.joined(separator: ", or ")
-                return .notUnderstood("More than one menu item in \(appName) fits: \(names). Say which one.")
-            }
-            chosen = only
+            let names = options.map { $0.joined(separator: " > ") }.joined(separator: ", or ")
+            return .notUnderstood("More than one menu item in \(appName) fits: \(names). Say which one.")
+        case .none:
+            return .notUnderstood("Opened \(appName). It has no menu item like \u{201C}\(request.action)\u{201D}.")
         }
-        if isGreyedOut(chosen) { return greyedMessage(chosen) }
 
         let arguments: JSONValue = .object(["app": .string(appName), "path": .array(chosen.map(JSONValue.string))])
         let tool = ClickMenuTool()
@@ -339,6 +327,116 @@ public actor Pipeline {
             return .done(result.summary ?? result.output)
         } catch {
             return .failed(error.localizedDescription)
+        }
+    }
+
+    // MARK: The app in front
+
+    private enum MenuPick {
+        case item([String])
+        case greyedOut([String])
+        case unsure([[String]])
+        case none
+    }
+
+    /// Chooses among an app's menu items. Greyed-out items count only when one of them is the clear best
+    /// fit, so it can be said so; they never make a working item look ambiguous.
+    private func pickMenuItem(_ phrase: String, among entries: [AppMenuBar.Entry], strict: Bool) -> MenuPick {
+        let paths = entries.map(\.path)
+        let greyed = Set(entries.filter { !$0.enabled }.map { $0.path.joined(separator: " > ") })
+        func isGreyed(_ path: [String]) -> Bool { greyed.contains(path.joined(separator: " > ")) }
+        if strict {
+            guard let path = AppAction.exact(phrase, among: paths) else { return .none }
+            return isGreyed(path) ? .greyedOut(path) : .item(path)
+        }
+        switch AppAction.choose(phrase, among: paths) {
+        case .none:
+            return .none
+        case .item(let path):
+            return isGreyed(path) ? .greyedOut(path) : .item(path)
+        case .unsure(let options):
+            if let first = options.first, isGreyed(first) { return .greyedOut(first) }
+            let live = options.filter { !isGreyed($0) }
+            if live.count == 1, let only = live.first { return .item(only) }
+            return live.isEmpty ? .none : .unsure(live)
+        }
+    }
+
+    /// "New window", "print this", "open my personal DM", with no app named: tried on the app in front,
+    /// first its menu bar and then the buttons, tabs and list items of its window. Nil when nothing
+    /// clearly fits, so the model gets the command as before.
+    private func frontFallback(_ transcript: String, timings: inout Timings) async -> Outcome? {
+        guard FrontAction.request(in: transcript) != nil else { return nil }
+        let started = clock.now
+        let outcome: Outcome?
+        if let menu = await frontMenuAction(transcript, strict: false) {
+            outcome = menu
+        } else {
+            outcome = await frontWindowAction(transcript)
+        }
+        if outcome != nil {
+            timings.verb = "frontAction"
+            timings.actMs = milliseconds(since: started)
+        }
+        return outcome
+    }
+
+    private func frontApp() async -> NSRunningApplication? {
+        await MainActor.run {
+            guard let app = NSWorkspace.shared.frontmostApplication, app.activationPolicy == .regular,
+                  app.bundleIdentifier != Bundle.main.bundleIdentifier, !KeySafety.isTerminal(app)
+            else { return nil }
+            return app
+        }
+    }
+
+    /// `strict` takes only a menu item whose title is what was said, and not when it was said as "open ...".
+    private func frontMenuAction(_ transcript: String, strict: Bool) async -> Outcome? {
+        guard let request = FrontAction.request(in: transcript), !(strict && request.opensSomething),
+              let app = await frontApp(), let appName = app.localizedName,
+              let entries = try? AppMenus.entries(of: app.processIdentifier, appName: appName), !entries.isEmpty
+        else { return nil }
+        let chosen: [String]
+        switch pickMenuItem(request.phrase, among: entries, strict: strict) {
+        case .item(let path):
+            chosen = path
+        case .greyedOut(let path):
+            // Said as a bare action, it is plainly about this app, so say why nothing happened.
+            return .notUnderstood("\u{201C}\(path.last ?? "")\u{201D} is greyed out in \(appName) right now.")
+        case .unsure, .none:
+            return nil
+        }
+        let arguments: JSONValue = .object(["app": .string(appName), "path": .array(chosen.map(JSONValue.string))])
+        let tool = ClickMenuTool()
+        // Closing and quitting have their own rules, which ask first.
+        guard tool.kind(for: arguments) != .destructive else { return nil }
+        if dryRun { return .done("Would: Choose \(chosen.joined(separator: " > ")) in \(appName)") }
+        do {
+            let result = try await tool.call(arguments)
+            return .done(result.summary ?? result.output)
+        } catch {
+            return .failed(error.localizedDescription)
+        }
+    }
+
+    private func frontWindowAction(_ transcript: String) async -> Outcome? {
+        guard let request = FrontAction.request(in: transcript) else { return nil }
+        switch await FrontWindow.look(for: request.phrase) {
+        case .none, .unsure:
+            return nil
+        case .refused(let message):
+            return .failed(message)
+        case .ready(let target):
+            if dryRun {
+                return .done("Would: \(target.needsYes ? "Ask, then press" : "Press") \u{201C}\(target.label)\u{201D} in \(target.app)")
+            }
+            let press = target.press
+            let run: @Sendable () async -> Outcome = {
+                do { return .done(try await press()) } catch { return .failed(error.localizedDescription) }
+            }
+            guard target.needsYes else { return await run() }
+            pending = .later(run)
+            return .confirm("Press \u{201C}\(target.label)\u{201D} in \(target.app)?")
         }
     }
 
@@ -384,6 +482,9 @@ public actor Pipeline {
         case .setup(let routine):
             self.pending = nil
             return number == 1 ? await store(routine) : .done("Cancelled")
+        case .later(let run):
+            self.pending = nil
+            return number == 1 ? await run() : .done("Cancelled")
         case .routine(let call):
             self.pending = nil
             // A routine that had to ask stops the routine it is a step of, so this one is outermost.
@@ -529,8 +630,13 @@ public actor Pipeline {
                 ? matches.first?.item
                 : obviousChoice(among: matches, kinds: ranking.kinds, query: ranking.query)
             if let settled {
+                // "Print this" would otherwise switch to an app called Print Center. A menu item of the
+                // app in front that says exactly that wins, unless the user said to open something.
+                if let done = await frontMenuAction(command.raw, strict: true) { return done }
                 return await timed(&timings.actMs) { await act(command.verb, on: settled) }
             }
+            // The rules are unsure: what is in front may answer before a model is asked.
+            if let done = await frontFallback(command.raw, timings: &timings) { return done }
             switch await runAgent(on: command, timings: &timings) {
             case .settled(let outcome): return outcome
             case .declined(let reason): agentSaid = reason

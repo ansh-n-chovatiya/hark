@@ -151,6 +151,65 @@ private struct SetFieldTool: Tool {
     }
 }
 
+/// Pressing something in the window in front by the words on it, by rule: "open my personal DM" finds
+/// the list item, button or tab whose label fits. It uses the same scan and the same fences as the
+/// model's tools. Nothing is pressed unless one control clearly fits.
+enum FrontWindow {
+    struct Target: Sendable {
+        let app: String
+        let label: String
+        /// The control is about sending, posting, paying, joining or leaving: it asks first.
+        let needsYes: Bool
+        let press: @Sendable () async throws -> String
+    }
+
+    enum Found {
+        case none
+        case unsure([String])
+        case refused(String)
+        case ready(Target)
+    }
+
+    static func look(for phrase: String) async -> Found {
+        guard AXIsProcessTrusted(), let app = await MainActor.run(body: { try? ScreenApps.target(named: nil) }) else {
+            return .none
+        }
+        let element = AXUIElementCreateApplication(app.pid)
+        if ScreenApps.wake(element) { try? await Task.sleep(for: ScreenApps.wakeTime) }
+        guard let window = AX.frontWindow(of: element) else { return .none }
+        var scan = WindowScan(window: window, app: app)
+        scan.run()
+        // A text box is never pressed here: pressing one sends what it holds.
+        let candidates = scan.found.filter { !$0.isText && !$0.label.isEmpty }
+        switch AppAction.chooseLabel(phrase, among: candidates.map(\.label)) {
+        case .none:
+            return .none
+        case .unsure(let indexes):
+            return .unsure(indexes.prefix(3).map { candidates[$0].label })
+        case .label(let index):
+            let control = candidates[index]
+            do {
+                try ScreenSafety.refuseDeletion(control)
+            } catch {
+                return .refused(error.localizedDescription)
+            }
+            return .ready(Target(
+                app: control.app, label: control.label, needsYes: ScreenSafety.asksFirst(control.wording),
+                press: {
+                    try control.checkUnchanged()
+                    guard let action = Press.action(for: control) else {
+                        throw ScreenToolError(message: "\(control.name) in \(control.app) cannot be pressed.")
+                    }
+                    try await ScreenApps.bringForward(control)
+                    guard Press.perform(action, on: control.element.ref) else {
+                        throw ScreenToolError(message: "\(control.app) did not accept the press on \(control.name).")
+                    }
+                    return "Pressed \(control.name) in \(control.app)"
+                }))
+        }
+    }
+}
+
 private enum ScreenArguments {
     static func schema(extra: [String: JSONValue], required: [String]) -> JSONValue {
         let id: JSONValue = .object(["type": .string("string"), "description": .string("An id from look_at_app, such as e4")])

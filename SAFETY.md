@@ -58,6 +58,11 @@ These can be put back, usually with "undo that".
   fits what you said, by rule and with no model. It never chooses items about closing, quitting or
   deleting, never in a terminal, says so when the item is greyed out, and lists the options instead
   of guessing when two fit.
+- Say what to do with no app named ("new window", "print this", "click send", "open my personal DM"):
+  Hark tries the app in front, first its menu bar and then the buttons, tabs and list items in its
+  window, by rule. It acts only when one item clearly fits, never in a terminal, never on a text box
+  or password box, and refuses anything about deleting. A control about sending, posting, paying,
+  joining or leaving asks first (press 1 for yes).
 - Change the volume, mute, and light or dark appearance. Lock the screen.
 - Move and resize a window. Open a web page you saved under a name.
 - Copy the name, address or path of something that is open, so you can paste it.
