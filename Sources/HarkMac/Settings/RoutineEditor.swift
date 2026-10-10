@@ -65,13 +65,14 @@ private struct StepSection: View {
 
     var body: some View {
         Section {
-            VStack(alignment: .leading, spacing: 6) {
-                Picker("Kind", selection: kind) {
-                    Text("Hark command").tag(StepKind.hark)
-                    Text("Shell command").tag(StepKind.shell)
-                }
-                HelperText(text: isShell ? "A command you would type in Terminal." : "Something you would say to Hark.")
-            }
+            SettingsSelect(
+                label: "Kind",
+                options: [
+                    SelectOption(value: StepKind.hark, title: "Hark command", symbol: "waveform"),
+                    SelectOption(value: StepKind.shell, title: "Shell command", symbol: "terminal"),
+                ],
+                selection: kind,
+                helper: isShell ? "A command you would type in Terminal." : "Something you would say to Hark.")
             SettingsTextField(
                 isShell ? "Command" : "What to say",
                 text: step.text,

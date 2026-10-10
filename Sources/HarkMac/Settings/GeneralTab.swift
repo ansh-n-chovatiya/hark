@@ -79,20 +79,9 @@ private struct KeyPicker: View {
     @Binding var selection: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Picker(title, selection: $selection) {
-                ForEach(keys, id: \.0) { key in
-                    Text(key.1).tag(key.0)
-                }
-                // A key set by hand in the settings file still has to be selectable.
-                if !keys.contains(where: { $0.0 == selection }) {
-                    Text(selection).tag(selection)
-                }
-            }
-            if let problem {
-                ProblemText(text: problem)
-            }
-            HelperText(text: helper)
-        }
+        // A key set by hand in the settings file still has to be selectable.
+        let known = keys.map { SelectOption(value: $0.0, title: $0.1) }
+        let extra = keys.contains { $0.0 == selection } ? [] : [SelectOption(value: selection, title: selection)]
+        SettingsSelect(label: title, options: known + extra, selection: $selection, helper: helper, problem: problem)
     }
 }

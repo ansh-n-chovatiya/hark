@@ -19,10 +19,11 @@ struct UnderstandingTab: View {
 
     private var onlineModel: some View {
         Section {
-            Picker("Service", selection: provider) {
-                ForEach(ModelProvider.all) { Text($0.name).tag(Optional($0)) }
-                Text("Other").tag(ModelProvider?.none)
-            }
+            SettingsSelect(
+                label: "Service",
+                options: ModelProvider.all.map { SelectOption(value: Optional($0), title: $0.name) }
+                    + [SelectOption(value: nil, title: "Other", subtitle: "Type the address yourself")],
+                selection: provider)
             addressField(.online)
             SettingsTextField("Key", text: model.config.modelKey, isSecret: true) { key in
                 model.update { $0.modelKey = key.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -51,25 +52,18 @@ struct UnderstandingTab: View {
     @ViewBuilder private var modelRow: some View {
         if case .found(let names) = model.modelLookup {
             let chosen = Self.names(in: model.config.model)
-            LabeledContent("Models") {
-                Menu {
-                    // A model typed by hand that the service did not list stays ticked, so it is not lost.
-                    ForEach(chosen.filter { !names.contains($0) } + names, id: \.self) { name in
-                        Toggle(name, isOn: Binding(
-                            get: { chosen.contains(name) },
-                            set: { on in setModel(name, on: on, from: chosen) }
-                        ))
-                    }
-                } label: {
-                    Text(summary(of: chosen))
-                }
-                .menuStyle(.button)
-                .fixedSize()
-            }
-            HelperText(
-                text: "Tick one or more. Hark asks them all at once and uses the first answer. "
-                    + "Each ticked model is one more request to the service."
-            )
+            // A model typed by hand that the service did not list stays in the list, so it is not lost.
+            let unlisted = chosen.filter { !names.contains($0) }
+                .map { SelectOption(value: $0, title: $0, subtitle: "Not listed by the service") }
+            SettingsMultiSelect(
+                label: "Models",
+                options: unlisted + names.map { SelectOption(value: $0, title: $0) },
+                selection: Binding(
+                    get: { chosen },
+                    set: { picked in model.update { $0.model = picked.joined(separator: ", ") } }),
+                placeholder: "Choose models",
+                helper: "Tick one or more. Hark asks them all at once and uses the first answer. "
+                    + "Each ticked model is one more request to the service.")
         } else {
             SettingsTextField(
                 "Model",
@@ -83,22 +77,6 @@ struct UnderstandingTab: View {
 
     private static func names(in text: String) -> [String] {
         text.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
-    }
-
-    private func summary(of chosen: [String]) -> String {
-        switch chosen.count {
-        case 0: "Choose models"
-        case 1: chosen[0]
-        default: "\(chosen[0]) + \(chosen.count - 1) more"
-        }
-    }
-
-    /// The last ticked model cannot be unticked: with none, the online model would silently turn off.
-    private func setModel(_ name: String, on: Bool, from chosen: [String]) {
-        var updated = chosen
-        if on, !updated.contains(name) { updated.append(name) }
-        if !on, updated.count > 1 { updated.removeAll { $0 == name } }
-        model.update { $0.model = updated.joined(separator: ", ") }
     }
 
     @ViewBuilder private var lookupStatus: some View {
