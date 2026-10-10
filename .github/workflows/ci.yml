@@ -16,7 +16,7 @@ jobs:
       - name: Test
         run: swift test
       - name: Evaluation set (rules only, no model)
-        run: swift run hark --eval evals/developer-day.json --rules-only --min 75
+        run: swift run hark --eval evals/developer-day.json --rules-only --min 79
 
   hygiene:
     runs-on: ubuntu-latest

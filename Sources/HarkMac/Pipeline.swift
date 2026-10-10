@@ -242,6 +242,8 @@ public actor Pipeline {
             // Volume, mute, dark mode and the lock screen are single, certain things: no model is needed.
             timings.verb = "system"
             outcome = await timed(&timings.actMs) { await runSystem(system) }
+        } else if let moves = WindowLayout.request(in: asked.command), let done = await runLayout(moves, timings: &timings) {
+            outcome = done
         } else if let done = await appAction(asked.command, timings: &timings) {
             outcome = done
         } else if let command {
@@ -539,6 +541,34 @@ public actor Pipeline {
             for item in await source.items(for: command) where AppAction.tokens(item.title) == wanted { return true }
         }
         return false
+    }
+
+    /// "Put Chrome on the left and VS Code on the right": each window goes to its place through the same tool
+    /// the model uses, undo included. Nil when an app named is not running and nothing was moved yet, so the
+    /// words may still mean something else.
+    private func runLayout(_ moves: [WindowMove], timings: inout Timings) async -> Outcome? {
+        let started = clock.now
+        defer { timings.actMs = milliseconds(since: started) }
+        var said: [String] = []
+        for move in moves {
+            var arguments: [String: JSONValue] = ["place": .string(move.place.rawValue)]
+            if let app = move.app { arguments["app"] = .string(app) }
+            let tool = ArrangeWindowTool()
+            if dryRun {
+                said.append("Would: \(tool.describe(.object(arguments)))")
+                continue
+            }
+            do {
+                let result = try await tool.call(.object(arguments))
+                if let step = result.undo { undo.push(step) }
+                said.append(result.summary ?? result.output)
+            } catch {
+                if said.isEmpty, error.localizedDescription.contains("not running") { return nil }
+                return .failed(error.localizedDescription)
+            }
+        }
+        timings.verb = "arrange"
+        return .done(said.joined(separator: "; "))
     }
 
     private func runSystem(_ command: SystemCommand) async -> Outcome {

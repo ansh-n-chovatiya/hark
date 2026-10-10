@@ -4,6 +4,11 @@ All notable changes are written here, newest first. Versions follow
 [Semantic Versioning](https://semver.org); while Hark is below 1.0, a minor bump may change
 behaviour.
 
+## Unreleased
+
+- Window layout by rule: "put Chrome on the left and VS Code on the right", "make this window full size".
+- Rules-only evaluation: 41 of 51 (80 percent).
+
 ## 0.2.0 — 2026-10-10
 
 Hark now works with no model for far more commands, keeps going when a model fails, and learns your habits.

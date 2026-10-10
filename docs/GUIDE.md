@@ -86,6 +86,10 @@ so the two never get mixed up.
 when each name matches clearly (quitting and closing ask once for the whole list). "Close this tab", "close this
 window" and "hide this app" mean the one in front. Anything less certain goes to the model as before.
 
+**Window layout.** "Put Chrome on the left and VS Code on the right", "snap this window to the left",
+"put Safari on the right third" and "make this window full size" move windows by rule, with "undo that" putting
+them back. Halves, corners, thirds, centre and full are understood; an app that is not running goes to the model.
+
 **Doing something in an app.** Say "open Notes and create a new note", "open Safari and new window" or
 "open Finder and new window". Hark opens the app, reads its menu bar and chooses the one item that fits
 what you said ("create a note" finds File, New Note), all by rule, so it needs no model and takes a
