@@ -6,6 +6,8 @@ struct SelectOption<Value: Hashable>: Identifiable {
     let title: String
     var subtitle: String?
     var symbol: String?
+    /// Why this choice cannot be picked right now. It is shown greyed out, with this as its second line.
+    var unavailable: String?
     var id: Value { value }
 }
 
@@ -196,7 +198,9 @@ private struct OptionRow<Value: Hashable>: View {
                 }
                 VStack(alignment: .leading, spacing: 1) {
                     Text(option.title).lineLimit(1)
-                    if let subtitle = option.subtitle {
+                    if let reason = option.unavailable {
+                        Text(reason).font(SettingsLayout.small).foregroundStyle(.secondary).lineLimit(1)
+                    } else if let subtitle = option.subtitle {
                         Text(subtitle).font(SettingsLayout.small).foregroundStyle(.secondary).lineLimit(1)
                     }
                 }
@@ -208,7 +212,10 @@ private struct OptionRow<Value: Hashable>: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .onHover { isHovered = $0 }
+        .disabled(option.unavailable != nil)
+        .opacity(option.unavailable == nil ? 1 : 0.55)
+        .onHover { isHovered = $0 && option.unavailable == nil }
         .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .accessibilityHint(option.unavailable ?? "")
     }
 }
