@@ -1,6 +1,7 @@
 import AppKit
+import SwiftUI
 
-@MainActor public final class MenuBar: NSObject {
+@MainActor public final class MenuBar: NSObject, NSMenuDelegate {
     public var onSettings: (() -> Void)? {
         didSet {
             settingsItem.isHidden = onSettings == nil
@@ -14,57 +15,70 @@ import AppKit
     private static let lastCommandLimit = 60
 
     private let statusItem: NSStatusItem
-    private let statusLine = NSMenuItem(title: "Getting ready", action: nil, keyEquivalent: "")
-    private let lastCommandItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+    private let header = MenuHeaderState()
+    private let headerView: NSHostingView<MenuHeaderView>
+    private let headerItem = NSMenuItem()
     private let settingsItem = NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
     private let settingsSeparator = NSMenuItem.separator()
-    private var statusAction: (() -> Void)?
 
     public override init() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        headerView = NSHostingView(rootView: MenuHeaderView(state: header))
         super.init()
 
         statusItem.button?.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: "Hark")
 
         let menu = NSMenu()
-        menu.addItem(statusLine)
-        lastCommandItem.isHidden = true
-        menu.addItem(lastCommandItem)
+        menu.delegate = self
+        headerItem.view = headerView
+        menu.addItem(headerItem)
         menu.addItem(.separator())
 
         let type = NSMenuItem(title: "Type a command…", action: #selector(typeCommand), keyEquivalent: "")
         type.target = self
+        type.image = Self.icon("keyboard")
         menu.addItem(type)
         menu.addItem(.separator())
 
         // Hidden until something handles it, so the menu never offers an entry that does nothing.
         settingsItem.target = self
+        settingsItem.image = Self.icon("gearshape")
         settingsItem.isHidden = true
         settingsSeparator.isHidden = true
         menu.addItem(settingsItem)
         menu.addItem(settingsSeparator)
 
-        menu.addItem(withTitle: "Quit Hark", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        let quit = NSMenuItem(title: "Quit Hark", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        quit.image = Self.icon("power")
+        menu.addItem(quit)
         statusItem.menu = menu
+    }
+
+    private static func icon(_ name: String) -> NSImage? {
+        NSImage(systemSymbolName: name, accessibilityDescription: nil)
+    }
+
+    /// The card's height depends on its text, so it is measured each time the menu opens.
+    public func menuWillOpen(_ menu: NSMenu) {
+        headerView.setFrameSize(NSSize(width: MenuHeaderView.width, height: headerView.fittingSize.height))
     }
 
     /// The first line of the menu: how to use Hark, or what it is waiting for. With an action the
     /// line can be clicked, for example to open the settings pane it names.
     public func setStatus(_ text: String, action: (() -> Void)? = nil) {
-        statusLine.title = text
-        statusAction = action
-        statusLine.target = action == nil ? nil : self
-        statusLine.action = action == nil ? nil : #selector(runStatusAction)
+        header.status = text
+        header.action = action.map { run in { [weak self] in
+            self?.statusItem.menu?.cancelTracking()
+            run()
+        } }
     }
 
     public func setLastCommand(_ text: String) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        let shown = trimmed.count > Self.lastCommandLimit
+        header.lastCommand = trimmed.count > Self.lastCommandLimit
             ? trimmed.prefix(Self.lastCommandLimit) + "…"
-            : Substring(trimmed)
-        lastCommandItem.title = "Last command: \(shown)"
-        lastCommandItem.isHidden = false
+            : trimmed
     }
 
     @objc private func typeCommand() {
@@ -75,7 +89,4 @@ import AppKit
         onSettings?()
     }
 
-    @objc private func runStatusAction() {
-        statusAction?()
-    }
 }

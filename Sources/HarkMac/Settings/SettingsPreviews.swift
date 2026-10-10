@@ -28,6 +28,24 @@ extension SettingsWindow {
             let png = try render(window, appearance: appearance)
             try png.write(to: folder.appending(path: "starter-\(name).png"))
         }
+        try renderMenuHeaders(to: folder, appearances: appearances)
+    }
+
+    /// The card at the top of the menu bar menu, ready and waiting for a permission.
+    private static func renderMenuHeaders(to folder: URL, appearances: [(name: String, appearance: NSAppearance.Name)]) throws {
+        let ready = MenuHeaderState()
+        ready.status = "Hold right Option to speak, tap right Command to type"
+        ready.lastCommand = "Open Chrome and search Jantar Mantar in new tab."
+        let waiting = MenuHeaderState()
+        waiting.status = "Turn on Accessibility for Hark\u{2026}"
+        waiting.action = {}
+        for (state, label) in [(ready, "ready"), (waiting, "waiting")] {
+            for (name, appearance) in appearances {
+                let window = NSWindow(contentViewController: NSHostingController(rootView: MenuHeaderView(state: state)))
+                window.styleMask = [.borderless]
+                try render(window, appearance: appearance).write(to: folder.appending(path: "menu-\(label)-\(name).png"))
+            }
+        }
     }
 
     /// `ImageRenderer` draws a grouped form and its controls as an empty rectangle, so the real
