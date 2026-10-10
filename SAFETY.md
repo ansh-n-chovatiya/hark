@@ -120,7 +120,9 @@ Hark looks for an AI command-line tool you already use (Claude Code) and uses it
 when you have not turned that off (Settings, Understanding). The models are tried in order: the online
 model you set up, then those tools, then the model on this Mac. One that fails, for example by running
 out of quota, is not asked again for a few minutes. The tool is started with all of its own tools,
-settings and extensions off and nothing saved, in an empty folder, so it can only answer in words. Its
+settings and extensions off and nothing saved, in an empty folder, so it can only answer in words. One
+process is kept running between commands (started when you press the key, replaced after eight questions, after
+a timeout or a cancelled request, and after ten idle minutes), and each question is told to stand alone. Its
 answer is read as a list of calls to Hark's own tools, anything else is dropped, and each call goes
 through the same checks as any model's. What it is sent is the same as for an online model: your
 command, and the names of open apps, windows, tabs and files. Never the clipboard. History says which

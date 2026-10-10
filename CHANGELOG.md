@@ -6,6 +6,13 @@ behaviour.
 
 ## Unreleased
 
+- Claude Code as a backup model is now a running process, started when you press the key: about 1.9 s per
+  command once warm, against 7 to 10 s before.
+- Fixes from an independent code review: menu items about sending, posting, paying, replacing and renaming ask
+  first on every path; dictation types only into text boxes; an unreadable settings file is kept aside and an
+  unread Keychain never deletes your key; a cancelled model is not marked as failed; several races and hangs.
+- A software bill of materials and build provenance for releases; `scripts/uninstall.sh`.
+- Names Hark suggests keep only the thing named and are proven to help before they are offered.
 - Window layout by rule: "put Chrome on the left and VS Code on the right", "make this window full size".
 - "Open a new window in Chrome" and "create a note in Notes" by rule.
 - Rules-only evaluation: 46 of 55 (84 percent); CI now fails below 83.

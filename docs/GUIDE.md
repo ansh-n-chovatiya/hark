@@ -110,8 +110,9 @@ VS Code) show what they choose to, and some show little.
 up, then an AI tool already on your Mac (Claude Code is found automatically), then the model on this
 Mac. A model that is out of quota rests for a few minutes instead of making every command wait, and
 Settings, Understanding, "Order Hark tries" shows which are ready and which are resting. Each command in
-History says which model answered. An AI tool on the Mac starts a program for every question, so a
-command that needs it takes several seconds. Under Understanding you can choose which of its models
+History says which model answered. An AI tool on the Mac is started when you press the key and kept running, so a
+command that needs it takes a couple of seconds once it is warm (measured: about 1.9 s on one Mac, against 7 to 10 s
+when a new program was started for each question). Under Understanding you can choose which of its models
 Hark asks (Haiku, the fastest, is the default), and turn any model off or move it in the order.
 
 **Learning.** Hark sets itself up and offers shortcuts so you do not have to fill in the Folders, Names,
