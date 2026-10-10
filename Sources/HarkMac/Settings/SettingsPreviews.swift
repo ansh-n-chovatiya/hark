@@ -29,6 +29,31 @@ extension SettingsWindow {
             try png.write(to: folder.appending(path: "starter-\(name).png"))
         }
         try renderMenuHeaders(to: folder, appearances: appearances)
+        try renderKeyList(to: folder, appearances: appearances)
+    }
+
+    /// The open list of a key picker, with sample rows: a chosen key, tags, a key in use and the reset group.
+    private static func renderKeyList(to folder: URL, appearances: [(name: String, appearance: NSAppearance.Name)]) throws {
+        let options: [SelectOption<String>] = [
+            SelectOption(value: "fn", title: "fn (Globe)"),
+            SelectOption(value: "leftControl", title: "Left Control"),
+            SelectOption(value: "leftOption", title: "Left Option"),
+            SelectOption(value: "leftCommand", title: "Left Command"),
+            SelectOption(value: "rightOption", title: "Right Option", symbol: "star.fill"),
+            SelectOption(value: "rightCommand", title: "Right Command", unavailable: "In use"),
+            SelectOption(value: "rightShift", title: "Right Shift"),
+            SelectOption(value: "f13", title: "F13"),
+            SelectOption(value: "", title: "Off", separatorBefore: true),
+            SelectOption(value: "@reset", title: "Reset to default", symbol: "arrow.counterclockwise"),
+        ]
+        let field = SelectField(
+            label: "Key to hold", options: options, summary: "Right Option", helper: nil, problem: nil,
+            closesOnChoice: true, isSelected: { $0 == "rightOption" }, choose: { _ in })
+        for (name, appearance) in appearances {
+            let window = NSWindow(contentViewController: NSHostingController(rootView: field.list.frame(height: 400).background(.background)))
+            window.styleMask = [.borderless]
+            try render(window, appearance: appearance).write(to: folder.appending(path: "keylist-\(name).png"))
+        }
     }
 
     /// The card at the top of the menu bar menu, ready and waiting for a permission.

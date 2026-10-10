@@ -6,8 +6,13 @@ struct SelectOption<Value: Hashable>: Identifiable {
     let title: String
     var subtitle: String?
     var symbol: String?
-    /// Why this choice cannot be picked right now. It is shown greyed out, with this as its second line.
+    /// Why this choice cannot be picked right now. The row is greyed out and this shows beside it.
     var unavailable: String?
+    /// A short label at the right of the row, such as "Recommended".
+    var tag: String?
+    var tagIsHighlighted = false
+    /// Starts a new group: a line is drawn above this row.
+    var separatorBefore = false
     var id: Value { value }
 }
 
@@ -66,9 +71,9 @@ struct SettingsMultiSelect<Value: Hashable>: View {
     }
 }
 
-private struct SelectField<Value: Hashable>: View {
+struct SelectField<Value: Hashable>: View {
     /// Lists longer than this get a search box.
-    private static var searchFrom: Int { 8 }
+    private static var searchFrom: Int { 12 }
 
     let label: String
     let options: [SelectOption<Value>]
@@ -125,7 +130,7 @@ private struct SelectField<Value: Hashable>: View {
         return options.filter { $0.title.localizedCaseInsensitiveContains(text) }
     }
 
-    private var list: some View {
+    var list: some View {
         VStack(spacing: 0) {
             if options.count > Self.searchFrom {
                 HStack(spacing: 6) {
@@ -145,8 +150,14 @@ private struct SelectField<Value: Hashable>: View {
             }
             ScrollView {
                 LazyVStack(spacing: 2) {
-                    ForEach(shown) { option in
-                        OptionRow(option: option, isSelected: isSelected(option.value)) {
+                    ForEach(Array(shown.enumerated()), id: \.element.id) { index, option in
+                        if option.separatorBefore, index > 0, query.isEmpty {
+                            Divider().padding(.vertical, 4).padding(.horizontal, 6)
+                        }
+                        OptionRow(
+                            option: option, isSelected: isSelected(option.value),
+                            reservesIconColumn: options.contains { $0.symbol != nil }
+                        ) {
                             choose(option.value)
                             if closesOnChoice { isOpen = false }
                         }
@@ -160,7 +171,7 @@ private struct SelectField<Value: Hashable>: View {
                 }
                 .padding(6)
             }
-            .frame(maxHeight: 300)
+            .frame(maxHeight: 380)
             if !closesOnChoice {
                 Divider()
                 HStack {
@@ -180,6 +191,8 @@ private struct SelectField<Value: Hashable>: View {
 private struct OptionRow<Value: Hashable>: View {
     let option: SelectOption<Value>
     let isSelected: Bool
+    /// When any row in the list has an icon, the rest keep the same gap so the names line up.
+    let reservesIconColumn: Bool
     let action: () -> Void
     @State private var isHovered = false
 
@@ -195,20 +208,32 @@ private struct OptionRow<Value: Hashable>: View {
                     .accessibilityHidden(true)
                 if let symbol = option.symbol {
                     Image(systemName: symbol).foregroundStyle(.secondary).frame(width: 20).accessibilityHidden(true)
+                } else if reservesIconColumn {
+                    Color.clear.frame(width: 20, height: 1)
                 }
                 VStack(alignment: .leading, spacing: 1) {
                     Text(option.title).lineLimit(1)
-                    if let reason = option.unavailable {
-                        Text(reason).font(SettingsLayout.small).foregroundStyle(.secondary).lineLimit(1)
-                    } else if let subtitle = option.subtitle {
+                    if let subtitle = option.subtitle {
                         Text(subtitle).font(SettingsLayout.small).foregroundStyle(.secondary).lineLimit(1)
                     }
                 }
-                Spacer(minLength: 0)
+                Spacer(minLength: 8)
+                if let label = option.unavailable ?? option.tag {
+                    Text(label)
+                        .font(SettingsLayout.small)
+                        .foregroundStyle(option.tagIsHighlighted && option.unavailable == nil ? Color.accentColor : .secondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(
+                            Capsule().fill(
+                                option.tagIsHighlighted && option.unavailable == nil
+                                    ? Color.accentColor.opacity(0.14) : Color.primary.opacity(0.08)))
+                        .lineLimit(1)
+                }
             }
             .padding(.horizontal, 8)
-            .frame(minHeight: 28)
-            .background(RoundedRectangle(cornerRadius: 6).fill(isHovered ? Color.primary.opacity(0.08) : .clear))
+            .frame(minHeight: 32)
+            .background(RoundedRectangle(cornerRadius: 6).fill(background))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -216,6 +241,11 @@ private struct OptionRow<Value: Hashable>: View {
         .opacity(option.unavailable == nil ? 1 : 0.55)
         .onHover { isHovered = $0 && option.unavailable == nil }
         .accessibilityAddTraits(isSelected ? .isSelected : [])
-        .accessibilityHint(option.unavailable ?? "")
+        .accessibilityHint(option.unavailable ?? option.tag ?? "")
+    }
+
+    private var background: Color {
+        if isSelected { return Color.accentColor.opacity(0.14) }
+        return isHovered ? Color.primary.opacity(0.08) : .clear
     }
 }

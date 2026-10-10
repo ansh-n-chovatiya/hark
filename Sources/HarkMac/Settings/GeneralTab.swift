@@ -18,14 +18,9 @@ struct GeneralTab: View {
         ("f15", "F15"),
     ]
 
-    /// A line under a key that needs a word of warning. Hark steps aside if the key is used in a
-    /// shortcut, but a key you press for shortcuts all day is a poor one to hold.
-    private static let notes = [
-        "fn": "Bottom-left key. Set \u{201C}Press \u{1F310} key to\u{201D} to Do Nothing in System Settings, Keyboard.",
-        "leftControl": "Also part of many shortcuts",
-        "leftOption": "Also part of many shortcuts",
-        "leftCommand": "Also part of many shortcuts",
-        "rightShift": "Also used for capital letters",
+    /// Said under the field when the chosen key needs a word of explanation.
+    private static let longNotes = [
+        "fn": "Also set \u{201C}Press \u{1F310} key to\u{201D} to Do Nothing in Keyboard settings.",
     ]
 
     var body: some View {
@@ -60,25 +55,24 @@ struct GeneralTab: View {
     private var holdKeyPicker: some View {
         KeyPicker(
             title: "Key to hold", keys: Self.keys, recommended: "rightOption", defaultKey: "rightOption",
-            notes: Self.notes, takenBy: taken(.hold),
-            helper: "Hold it and speak.",
+            longNotes: Self.longNotes, takenBy: taken(.hold),
+            helper: "Hold it and speak. \u{2605} marks the recommended key.",
             problem: model.keyProblem(.hold), selection: key(.hold))
     }
 
     private var typingKeyPicker: some View {
         KeyPicker(
             title: "Key to tap for typing", keys: Self.keys + [("", "Off")], defaultKey: "rightCommand",
-            notes: Self.notes, takenBy: taken(.typing),
-            helper: "Tap it once to open a bar where you type a command.",
+            longNotes: Self.longNotes, takenBy: taken(.typing),
+            helper: "Tap it to type a command.",
             problem: model.keyProblem(.typing), selection: key(.typing))
     }
 
     private var dictationKeyPicker: some View {
         KeyPicker(
             title: "Key to hold for dictation", keys: Self.keys + [("", "Off")], defaultKey: "",
-            notes: Self.notes, takenBy: taken(.dictation),
-            helper: "Hold it and speak: what you say is typed where your cursor is, in any app. "
-                + "It types only your own words and never presses Return.",
+            longNotes: Self.longNotes, takenBy: taken(.dictation),
+            helper: "Hold it and speak. Your words are typed where the cursor is.",
             problem: model.keyProblem(.dictation), selection: key(.dictation))
     }
 
@@ -97,11 +91,7 @@ struct GeneralTab: View {
         for other in KeyField.allCases where other != field {
             let key = model.key(other)
             guard !key.isEmpty else { continue }
-            used[key] = switch other {
-            case .hold: "Already used to speak"
-            case .typing: "Already used to type"
-            case .dictation: "Already used to dictate"
-            }
+            used[key] = "In use"
         }
         return used
     }
@@ -121,7 +111,7 @@ private struct KeyPicker: View {
     var recommended: String?
     /// What "Reset to default" puts back.
     let defaultKey: String
-    var notes: [String: String] = [:]
+    var longNotes: [String: String] = [:]
     var takenBy: [String: String] = [:]
     let helper: String
     let problem: String?
@@ -132,21 +122,24 @@ private struct KeyPicker: View {
 
     var body: some View {
         // A key set by hand in the settings file still has to be selectable.
-        let known = keys.map {
+        let known = keys.map { key in
             SelectOption(
-                value: $0.0, title: $0.1, subtitle: $0.0 == recommended ? "Recommended" : notes[$0.0],
-                unavailable: $0.0 == selection ? nil : takenBy[$0.0])
+                value: key.0, title: key.1,
+                symbol: key.0 == recommended ? "star.fill" : nil,
+                unavailable: key.0 == selection ? nil : takenBy[key.0],
+                separatorBefore: key.0.isEmpty)
         }
         let extra = keys.contains { $0.0 == selection } ? [] : [SelectOption(value: selection, title: selection)]
-        let defaultName = keys.first { $0.0 == defaultKey }?.1 ?? "Off"
         let reset = selection == defaultKey ? [] : [
             SelectOption(
-                value: Self.resetValue, title: "Reset to default", subtitle: defaultName,
-                symbol: "arrow.counterclockwise", unavailable: takenBy[defaultKey]),
+                value: Self.resetValue, title: "Reset to default", symbol: "arrow.counterclockwise",
+                unavailable: takenBy[defaultKey]),
         ]
         let chosen = Binding(
             get: { selection },
             set: { selection = $0 == Self.resetValue ? defaultKey : $0 })
-        SettingsSelect(label: title, options: known + extra + reset, selection: chosen, helper: helper, problem: problem)
+        SettingsSelect(
+            label: title, options: known + extra + reset, selection: chosen,
+            helper: [helper, longNotes[selection]].compactMap { $0 }.joined(separator: " "), problem: problem)
     }
 }
