@@ -35,15 +35,15 @@ extension SettingsWindow {
     /// The open list of a key picker, with sample rows: a chosen key, tags, a key in use and the reset group.
     private static func renderKeyList(to folder: URL, appearances: [(name: String, appearance: NSAppearance.Name)]) throws {
         let options: [SelectOption<String>] = [
-            SelectOption(value: "fn", title: "fn (Globe)"),
-            SelectOption(value: "leftControl", title: "Left Control"),
-            SelectOption(value: "leftOption", title: "Left Option"),
-            SelectOption(value: "leftCommand", title: "Left Command"),
-            SelectOption(value: "rightOption", title: "Right Option", symbol: "star.fill"),
-            SelectOption(value: "rightCommand", title: "Right Command", unavailable: "In use"),
-            SelectOption(value: "rightShift", title: "Right Shift"),
-            SelectOption(value: "f13", title: "F13"),
-            SelectOption(value: "", title: "Off", separatorBefore: true),
+            SelectOption(value: "fn", title: "fn (Globe)", symbol: "globe"),
+            SelectOption(value: "leftControl", title: "Left Control", symbol: "control"),
+            SelectOption(value: "leftOption", title: "Left Option", symbol: "option"),
+            SelectOption(value: "leftCommand", title: "Left Command", symbol: "command"),
+            SelectOption(value: "rightOption", title: "Right Option", symbol: "option", trailingSymbol: "star.fill"),
+            SelectOption(value: "rightCommand", title: "Right Command", symbol: "command", unavailable: "In use"),
+            SelectOption(value: "rightShift", title: "Right Shift", symbol: "shift"),
+            SelectOption(value: "f13", title: "F13", symbol: "keyboard"),
+            SelectOption(value: "", title: "Off", symbol: "nosign", separatorBefore: true),
             SelectOption(value: "@reset", title: "Reset to default", symbol: "arrow.counterclockwise"),
         ]
         let field = SelectField(

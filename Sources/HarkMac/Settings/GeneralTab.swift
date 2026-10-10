@@ -56,7 +56,7 @@ struct GeneralTab: View {
         KeyPicker(
             title: "Key to hold", keys: Self.keys, recommended: "rightOption", defaultKey: "rightOption",
             longNotes: Self.longNotes, takenBy: taken(.hold),
-            helper: "Hold it and speak. \u{2605} marks the recommended key.",
+            helper: "Hold it and speak. The star marks the recommended key.",
             problem: model.keyProblem(.hold), selection: key(.hold))
     }
 
@@ -117,6 +117,19 @@ private struct KeyPicker: View {
     let problem: String?
     @Binding var selection: String
 
+    /// The symbol macOS draws on that key's cap.
+    private static func symbol(forKey key: String) -> String? {
+        let name = key.lowercased()
+        if name == "fn" { return "globe" }
+        if name.hasSuffix("control") { return "control" }
+        if name.hasSuffix("option") { return "option" }
+        if name.hasSuffix("command") { return "command" }
+        if name.hasSuffix("shift") { return "shift" }
+        if name.hasPrefix("f1") { return "keyboard" }
+        if key.isEmpty { return "nosign" }
+        return nil
+    }
+
     /// Not a key: the entry that puts the default back.
     private static let resetValue = "@reset"
 
@@ -125,8 +138,9 @@ private struct KeyPicker: View {
         let known = keys.map { key in
             SelectOption(
                 value: key.0, title: key.1,
-                symbol: key.0 == recommended ? "star.fill" : nil,
+                symbol: Self.symbol(forKey: key.0),
                 unavailable: key.0 == selection ? nil : takenBy[key.0],
+                trailingSymbol: key.0 == recommended ? "star.fill" : nil,
                 separatorBefore: key.0.isEmpty)
         }
         let extra = keys.contains { $0.0 == selection } ? [] : [SelectOption(value: selection, title: selection)]

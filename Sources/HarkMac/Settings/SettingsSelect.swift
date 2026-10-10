@@ -11,6 +11,8 @@ struct SelectOption<Value: Hashable>: Identifiable {
     /// A short label at the right of the row, such as "Recommended".
     var tag: String?
     var tagIsHighlighted = false
+    /// A small symbol at the right of the row, such as a star for the recommended choice.
+    var trailingSymbol: String?
     /// Starts a new group: a line is drawn above this row.
     var separatorBefore = false
     var id: Value { value }
@@ -105,6 +107,10 @@ struct SelectField<Value: Hashable>: View {
             isOpen.toggle()
         } label: {
             HStack(spacing: 8) {
+                // A single choice shows its symbol in the closed field too.
+                if closesOnChoice, let symbol = options.first(where: { isSelected($0.value) })?.symbol {
+                    Image(systemName: symbol).foregroundStyle(.secondary).accessibilityHidden(true)
+                }
                 Text(summary).lineLimit(1).truncationMode(.tail)
                 Spacer(minLength: 8)
                 Image(systemName: "chevron.up.chevron.down")
@@ -218,6 +224,9 @@ private struct OptionRow<Value: Hashable>: View {
                     }
                 }
                 Spacer(minLength: 8)
+                if let trailing = option.trailingSymbol, option.unavailable == nil {
+                    Image(systemName: trailing).foregroundStyle(.yellow).accessibilityLabel("Recommended")
+                }
                 if let label = option.unavailable ?? option.tag {
                     Text(label)
                         .font(SettingsLayout.small)
