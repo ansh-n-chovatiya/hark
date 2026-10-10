@@ -71,25 +71,31 @@ Hark is built so that even if it misunderstands you, it **can't do real damage**
 
 Details: [SAFETY.md](SAFETY.md).
 
-## 📦 Install in 3 steps
+## 📦 Install in 2 steps
 
 **You need:** a Mac with Apple silicon (M1 or newer), macOS 26, and about 1 GB of free space.
 
-**1. Get Apple's developer tools** (free, one time). Open the **Terminal** app and paste:
+**1. Install Hark.** Open the **Terminal** app and paste:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/ansh-n-chovatiya/hark/main/scripts/get.sh | zsh
+```
+
+This downloads the latest release in seconds. No developer tools needed. Prefer a zip? Get `Hark-macos-arm64.zip` from the [latest release](https://github.com/ansh-n-chovatiya/hark/releases/latest), unzip it, move Hark to Applications, then right-click it and choose **Open** the first time.
+
+<details>
+<summary>Build it from source instead</summary>
 
 ```sh
 xcode-select --install
-```
-
-**2. Download and install Hark:**
-
-```sh
-git clone <this repository's address>
-cd Hark
+git clone https://github.com/ansh-n-chovatiya/hark.git
+cd hark
 scripts/install.sh
 ```
 
-**3. Say yes to the permission pop-ups.** Look for the waveform icon ⏺ in your menu bar.
+</details>
+
+**2. Say yes to the permission pop-ups.** Look for the waveform icon ⏺ in your menu bar.
 
 | macOS asks for | Why |
 | --- | --- |
