@@ -58,7 +58,7 @@ key held ─► MicrophoneInput ─► Parakeet / Apple recogniser ─► text
 ## Command-line flags (development)
 
 `--say "<command>" [--dry] [--trace]`, `--eval <file> [--rules-only [--min N]]`, `--models`, `--proof`,
-`--review-failures`, `--permissions`, `--show-dictation`, `--render-settings <folder>`, `--tool`, `--wrong`.
+`--review-failures`, `--permissions`, `--window-counts`, `--show-dictation`, `--render-settings <folder>`, `--tool`, `--wrong`.
 Set `HARK_NO_KEYCHAIN=1` to run without reading the Keychain.
 
 ## Scripts

@@ -758,6 +758,14 @@ func runCommandLine(_ flag: String, _ values: [String]) async -> Int32 {
             }
         }
         return 0
+    case "--window-counts":
+        // How many controls of each kind the app in front exposes. Counts only, never labels.
+        if let found = await FrontWindow.counts() {
+            print("\(found.app): \(found.kinds.sorted { $0.key < $1.key }.map { "\($0.value) \($0.key)" }.joined(separator: ", "))")
+        } else {
+            print("No app is in front, or Accessibility is not allowed.")
+        }
+        return 0
     case "--permissions":
         for permission in Permission.allCases { print("\(permission.rawValue): \(Permissions.status(permission).rawValue)") }
         let chrome = NSAppleEventDescriptor(bundleIdentifier: "com.google.Chrome")

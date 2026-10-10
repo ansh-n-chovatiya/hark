@@ -154,7 +154,7 @@ private struct SetFieldTool: Tool {
 /// Pressing something in the window in front by the words on it, by rule: "open my personal DM" finds
 /// the list item, button or tab whose label fits. It uses the same scan and the same fences as the
 /// model's tools. Nothing is pressed unless one control clearly fits.
-enum FrontWindow {
+public enum FrontWindow {
     struct Target: Sendable {
         let app: String
         let label: String
@@ -168,6 +168,20 @@ enum FrontWindow {
         case unsure([String])
         case refused(String)
         case ready(Target)
+    }
+
+    /// How many controls of each kind the window in front shows to Accessibility, with no labels, for judging
+    /// whether an app exposes its window at all.
+    public static func counts() async -> (app: String, kinds: [String: Int])? {
+        guard AXIsProcessTrusted(), let app = await MainActor.run(body: { try? ScreenApps.target(named: nil) }) else { return nil }
+        let element = AXUIElementCreateApplication(app.pid)
+        if ScreenApps.wake(element) { try? await Task.sleep(for: ScreenApps.wakeTime) }
+        guard let window = AX.frontWindow(of: element) else { return (app.name, [:]) }
+        var scan = WindowScan(window: window, app: app)
+        scan.run()
+        var kinds: [String: Int] = [:]
+        for control in scan.found { kinds[control.word, default: 0] += 1 }
+        return (app.name, kinds)
     }
 
     static func look(for phrase: String) async -> Found {
