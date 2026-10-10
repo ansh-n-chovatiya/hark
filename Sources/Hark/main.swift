@@ -41,6 +41,7 @@ private final class StallLog: Sendable {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let overlay = Overlay()
     private let commandBar = CommandBar()
+    private let dictationIndicator = DictationIndicator()
     private let transcriber = ParakeetTranscriber { status in
         logger.notice("speech: \(status.isEmpty ? "Parakeet ready" : status, privacy: .public)")
     }
@@ -77,6 +78,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private static let tapLimit: Duration = .milliseconds(250)
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        dictationIndicator.onCancel = { [weak self] in self?.dictationCancelled() }
         menuBar = MenuBar()
         if CommandLine.arguments.contains("--demo-overlay") {
             overlay.runDemo()
@@ -290,13 +292,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         dictationWatch?.cancel()
         dictationWatch = Task { [weak self] in await self?.watchDictation() }
         commandBar.hide()
-        overlay.show(.listening)
+        overlay.show(.hidden)
+        dictationIndicator.show(.listening)
         capture = Task {
             do {
                 try await transcriber.start()
                 return true
             } catch {
-                overlay.show(.error(error.localizedDescription))
+                dictationIndicator.show(.error(error.localizedDescription))
                 return false
             }
         }
@@ -313,7 +316,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             if clock.now - started > Self.longestDictation {
                 dictationCancelled()
-                overlay.show(.error("Dictation stopped. Hold the key again to continue."))
+                dictationIndicator.show(.error("Dictation stopped. Hold the key again to continue."))
                 return
             }
         }
@@ -327,24 +330,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             dictationCancelled()
             return
         }
-        overlay.show(.working(""))
+        dictationIndicator.show(.typing)
         Task {
             do {
                 guard let heard = try await wordsFromRecording(timeout: .seconds(20)) else {
-                    overlay.show(.error("I could not hear that. Please try again."))
+                    dictationIndicator.show(.error("I could not hear that. Please try again."))
                     return
                 }
                 let text = Dictation.tidy(heard)
                 guard !text.isEmpty else {
-                    overlay.show(.hidden)
+                    dictationIndicator.show(.hidden)
                     return
                 }
                 try await TextTyper.type(text)
                 let words = text.split(separator: " ").count
                 logger.notice("dictated \(words, privacy: .public) words")
-                overlay.show(.result("Typed \(words) \(words == 1 ? "word" : "words")"))
+                dictationIndicator.show(.typed(words))
             } catch {
-                overlay.show(.error(error.localizedDescription))
+                dictationIndicator.show(.error(error.localizedDescription))
             }
         }
     }
@@ -352,7 +355,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func dictationCancelled() {
         isDictating = false
         dictationWatch?.cancel()
-        overlay.show(.hidden)
+        dictationIndicator.show(.hidden)
         Task {
             guard await capture?.value == true else { return }
             _ = try? await transcriber.finish()

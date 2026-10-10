@@ -30,6 +30,25 @@ extension SettingsWindow {
         }
         try renderMenuHeaders(to: folder, appearances: appearances)
         try renderKeyList(to: folder, appearances: appearances)
+        try renderDictationPills(to: folder, appearances: appearances)
+    }
+
+    /// The dictation pill in each of its states.
+    private static func renderDictationPills(to folder: URL, appearances: [(name: String, appearance: NSAppearance.Name)]) throws {
+        let states: [(DictationState, String)] = [
+            (.listening, "listening"), (.typing, "typing"), (.typed(14), "typed"),
+            (.error("A password field is selected, so Hark did not type."), "error"),
+        ]
+        for (state, label) in states {
+            for (name, appearance) in appearances {
+                let model = DictationModel()
+                model.state = state
+                let host = NSHostingView(rootView: DictationPill(model: model).padding(8).background(.background))
+                let window = NSWindow(contentRect: NSRect(origin: .zero, size: host.fittingSize), styleMask: [.borderless], backing: .buffered, defer: false)
+                window.contentView = host
+                try render(window, appearance: appearance).write(to: folder.appending(path: "dictation-\(label)-\(name).png"))
+            }
+        }
     }
 
     /// The open list of a key picker, with sample rows: a chosen key, tags, a key in use and the reset group.

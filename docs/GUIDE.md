@@ -88,6 +88,8 @@ words where the cursor is, in any app, using the speech model on your Mac, so th
 much you dictate. It removes "um" and "uh", flattens line breaks and capitalises the first letter, and
 that is all: no model rewrites your words. It only presses letter keys: never Return, so nothing is
 sent or run, and it does not use the clipboard. It refuses when a password field is selected.
+While you hold the key a small pill with a waveform shows in the top-right corner, so it stays out of
+the way of what you are writing. Drag it anywhere and Hark remembers the spot; the ✕ cancels.
 
 ## Safety
 

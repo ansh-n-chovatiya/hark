@@ -110,7 +110,7 @@ private struct StatusLine<Icon: View>: View {
     }
 }
 
-private struct ListeningMark: View {
+struct ListeningMark: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -269,7 +269,7 @@ private struct KeyHint: View {
     }
 }
 
-private struct HUDMaterial: NSViewRepresentable {
+struct HUDMaterial: NSViewRepresentable {
     func makeNSView(context: Context) -> NSVisualEffectView {
         let view = NSVisualEffectView()
         view.material = .hudWindow

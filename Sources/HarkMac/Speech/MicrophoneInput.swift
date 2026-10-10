@@ -47,6 +47,7 @@ final class MicrophoneInput: @unchecked Sendable {
             wanted = false
             engine.inputNode.removeTap(onBus: 0)
             engine.stop()
+            MicrophoneLevel.reset()
         }
     }
 
@@ -58,6 +59,7 @@ final class MicrophoneInput: @unchecked Sendable {
         let converter = try BufferConverter(from: format, to: target)
         node.removeTap(onBus: 0)
         node.installTap(onBus: 0, bufferSize: 4096, format: format) { [sink] buffer, _ in
+            MicrophoneLevel.update(from: buffer)
             // A tap has nowhere to throw; a buffer that fails to convert is dropped and shows up
             // as missing words rather than stopping capture.
             guard let converted = try? converter.convert(buffer) else { return }
