@@ -134,7 +134,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func startLearning() {
         activityLog.prune()
         if learning.setUpIfNeeded(&config) {
-            try? config.save(to: Paths.config)
+            try? ConfigStore.save(config)
             logger.notice("set up folders and projects on first run")
         }
         let recorder = ActivityRecorder(log: activityLog, chrome: ChromeTabsSource()) { [weak self] in
@@ -214,7 +214,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let keyChanged = changed.hotkey != config.hotkey
         config = changed
         do {
-            try changed.save(to: Paths.config)
+            try ConfigStore.save(changed)
         } catch {
             overlay.show(.error("Your settings could not be saved: \(error.localizedDescription)"))
         }
@@ -245,7 +245,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func loadConfig() -> Config {
         do {
-            return try Config.load(from: Paths.config)
+            return try ConfigStore.load()
         } catch {
             overlay.show(.error("The settings file could not be read, so defaults are in use"))
             return Config()
@@ -593,7 +593,7 @@ private extension Outcome {
 }
 
 func reviewFailures(save: Bool) async -> Int32 {
-    let config = (try? Config.load(from: Paths.config)) ?? Config()
+    let config = (try? ConfigStore.load()) ?? Config()
     let center = LearningCenter(
         activity: ActivityLog(url: Paths.activity), history: TimingLog(url: Paths.timings),
         store: LearningStore(url: Paths.learning), reports: WrongLog(url: Paths.wrong))
@@ -675,7 +675,7 @@ func runCommandLine(_ flag: String, _ values: [String]) async -> Int32 {
             print("usage: hark --proof \"<what was said>\" \"<what it means>\"")
             return 2
         }
-        let config = (try? Config.load(from: Paths.config)) ?? Config()
+        let config = (try? ConfigStore.load()) ?? Config()
         let suggestion = Suggestion(id: "proof", kind: .name, title: "", detail: "", said: values[0], meant: values[1])
         let worked = await SuggestionProof.shared.works(suggestion, config: config)
         print(worked ? "works: Hark would act on \"\(values[0])\" with that name" : "does not work")
@@ -683,7 +683,7 @@ func runCommandLine(_ flag: String, _ values: [String]) async -> Int32 {
     case "--models":
         // Lists the models in the order they are tried and times a tiny question to each on its own.
         ModelCLIs.discover()
-        let config = (try? Config.load(from: Paths.config)) ?? Config()
+        let config = (try? ConfigStore.load()) ?? Config()
         guard let chain = ModelSetup.make(for: config).chain else {
             print("No model is set up.")
             return 1
@@ -785,7 +785,7 @@ func evaluate(
     _ path: String, local: Bool, localModel: String?, rulesOnly: Bool, minimum: Double?, pause: Double
 ) async -> Int32 {
     do {
-        var config = try Config.load(from: Paths.config)
+        var config = try ConfigStore.load()
         if rulesOnly {
             // No model of any kind, so the score depends only on the rules and is the same on every Mac.
             config = Config()
@@ -825,7 +825,7 @@ func say(_ text: String, dryRun: Bool, answerYes: Bool) async -> Int32 {
     ModelCLIs.discover()
     let config: Config
     do {
-        config = try Config.load(from: Paths.config)
+        config = try ConfigStore.load()
     } catch {
         print("could not read \(Paths.config.path): \(error.localizedDescription)")
         return 1

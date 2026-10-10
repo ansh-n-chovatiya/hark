@@ -19,16 +19,19 @@ wrong task.
   scripts. Personal settings live in `~/.config/hark/config.json`.
 - This folder is the git repository (`~/Desktop/Personal/Hark`). Never commit `.ctx/`, build
   output or anything personal. `scripts/package.sh` still makes a clean source zip.
-- Native Swift, one SwiftPM package, system frameworks only. No third-party packages.
+- Native Swift, one SwiftPM package, system frameworks only. No third-party packages, with one pinned
+  exception: FluidAudio (Apache-2.0, runs the speech model on this Mac; see `THIRD_PARTY_NOTICES.md`).
 - Rules decide first and act at once. A model is asked only when the rules are unsure, never for
-  a command they settle (decision 0006). No new process between key release and the action.
+  a command they settle (decision 0006). No new process between key release and the action on the rule path; the AI-tool backup (`claude`) starts one,
+  only when the rules are unsure and the other models have failed.
 - Clipboard text never leaves the machine and never reaches any model, local or hosted.
 - Hark never deletes, moves, renames or overwrites the user's files, never empties the trash and
   never runs a command a model wrote (decision 0008). Do not add an action that can. Its actions
   are limited to things that can be reopened: switching, opening, hiding, closing tabs and
   windows, quitting apps, and pasting. Closing or quitting always asks first when a model chose it.
-- The model key lives only in `~/.config/hark/config.json`. Never print it, log it or copy it into
-  the project.
+- The model key lives in the macOS Keychain (service `dev.hark.app`, account `model-key`); a key typed into
+  `~/.config/hark/config.json` is moved there on the next start. Never print it, log it or copy it into
+  the project. Every reader of the settings goes through `ConfigStore`.
 - Never claim a speed without a number from the timing log.
 - When accuracy and speed pull apart, choose accuracy, up to about two seconds from key release
   to action (decision 0007). Past that, look for a faster way to be right, not a faster guess.

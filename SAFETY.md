@@ -124,6 +124,11 @@ through the same checks as any model's. What it is sent is the same as for an on
 command, and the names of open apps, windows, tabs and files. Never the clipboard. History says which
 model answered each command.
 
+## Where your model key is kept
+In the macOS Keychain, not in a file. The settings file (`~/.config/hark/config.json`) holds an empty key; if you
+type one into it, Hark moves it into the Keychain the next time it starts. Hark reads the key back before it
+removes it from the file, so a Keychain that refuses never loses it.
+
 ## What the model reviews
 While learning is on, and unless you turn off "Let the AI model review commands that failed" in
 Settings, Learning, Hark asks the model you set up (the hosted one if you added a key, else the one on
