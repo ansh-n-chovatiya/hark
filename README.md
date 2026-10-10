@@ -123,12 +123,13 @@ scripts/uninstall.sh --purge    # removes everything, including what Hark learne
 
 ## 🧠 Does it need an AI model?
 
-**No.** Simple commands are handled by built-in rules instantly. For harder, multi-step sentences Hark can ask an AI model:
+**No.** Most everyday commands are settled by built-in rules in a fraction of a second: opening and switching, search, volume, dark mode, window layout, "open an app and do something in it", lists like "open Slack and Linear". For harder, multi-step sentences Hark asks an AI model, and it keeps going if one fails. It tries, in this order (you can turn each off or move it, in **Settings → Understanding**):
 
-- **Private (default):** a model on your own Mac through [Ollama](https://ollama.com). Nothing leaves your computer.
-- **Online:** enter a service's address, model name and key in **Settings → Understanding**.
+1. **An online model** you set up: pick the service, enter your key, choose from the models it lists.
+2. **An AI tool already on your Mac**, such as Claude Code, found automatically. It is used text-only, with all of its own tools off.
+3. **A model on your own Mac**, through [Ollama](https://ollama.com). Nothing leaves your computer.
 
-Turn the model off and Hark still works for everyday commands.
+A model that fails, for example one out of quota, rests for a few minutes instead of making every command wait. Turn the model off and Hark still works for everyday commands. Your key is kept in the macOS Keychain.
 
 ## 🔧 Something not working?
 
@@ -139,6 +140,8 @@ Turn the model off and Hark still works for everyday commands.
 | Tabs aren't found | **Automation → Hark → Google Chrome** must be on. Tabs work in Chrome only |
 | It misheard names | Wait for the speech model download to finish; add your own words in **Settings → Names** |
 | It did the wrong thing | **Settings → History → "This was wrong"**, and tell us |
+| macOS keeps asking for my password | When it asks to use the "Hark Dev" key or the "model-key" item, choose **Always Allow**. It asks again each time you rebuild from source, because every build is a new program to macOS; the downloaded app does not |
+| I said it and nothing was typed | Dictation types only into a text box. With none selected, your words are copied: paste with ⌘V |
 
 Hark is early software, English-only, and has so far been used on one Mac. Browser tabs and editor windows work with Google Chrome and Visual Studio Code only.
 

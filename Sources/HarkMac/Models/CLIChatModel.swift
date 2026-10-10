@@ -6,7 +6,7 @@ import HarkCore
 /// answer is read by `CLIToolProtocol`, which keeps only calls to Hark's own tools.
 public struct CLIChatModel: ChatModel {
     private static let timeout: TimeInterval = 30
-    private static let folder = FileManager.default.temporaryDirectory.appending(path: "hark-cli", directoryHint: .isDirectory)
+    static let folder = FileManager.default.temporaryDirectory.appending(path: "hark-cli", directoryHint: .isDirectory)
 
     private let tool: ModelCLI
     private let model: String

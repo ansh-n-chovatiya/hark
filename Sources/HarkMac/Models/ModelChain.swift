@@ -244,11 +244,17 @@ public enum ModelSetup {
     }
 }
 
-/// Starts what takes a moment to start, while the user is still speaking.
+/// Starts what takes a moment to start, while the user is still speaking. Only an AI tool that is likely to be
+/// asked is started: when a model before it is healthy it will answer, so the tool is left alone until that
+/// model fails (which marks it as resting, and the next key press then starts the tool).
 public enum ModelWarmUp {
-    public static func start(for config: Config) {
-        for entry in ModelSetup.entries(for: config) where entry.isOn {
-            (entry.choice.model as? CLIChatModel)?.warmUp()
+    public static func start(for config: Config, health: ModelHealth = .shared, tools: [ModelCLI] = ModelCLIs.found) {
+        for entry in ModelSetup.entries(for: config, tools: tools) where entry.isOn {
+            if let tool = entry.choice.model as? CLIChatModel {
+                tool.warmUp()
+                return
+            }
+            if health.status(of: entry.choice.id) == nil { return }
         }
     }
 }

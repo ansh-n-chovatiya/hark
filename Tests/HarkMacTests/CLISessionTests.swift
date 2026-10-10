@@ -117,3 +117,33 @@ private func parts(_ answer: String) -> (pid: String, text: String) {
         }
     }
 }
+
+@Suite struct ModelWarmUpTests {
+    private func config() -> Config {
+        var config = Config(model: "online-model", modelURL: "https://models.example.com/v1", modelKey: "key")
+        config.fallbackModel = ""
+        return config
+    }
+
+    @Test func theToolIsNotStartedWhileAModelBeforeItIsHealthy() async throws {
+        let (tool, folder) = try fakeTool()
+        let health = ModelHealth()
+        ModelWarmUp.start(for: config(), health: health, tools: [tool])
+        try await Task.sleep(for: .milliseconds(400))
+        let session = CLISession.shared(for: tool, model: "haiku", folder: CLIChatModel.folder)
+        #expect(await !session.isRunning)
+        _ = folder
+    }
+
+    @Test func theToolIsStartedOnceTheModelBeforeItIsResting() async throws {
+        let (tool, _) = try fakeTool()
+        let health = ModelHealth()
+        let config = config()
+        let online = try #require(ModelSetup.entries(for: config, tools: [tool]).first)
+        health.markDown(online.choice.id, reason: "quota used up", for: 600)
+        ModelWarmUp.start(for: config, health: health, tools: [tool])
+        let session = CLISession.shared(for: tool, model: "haiku", folder: CLIChatModel.folder)
+        try await Task.sleep(for: .milliseconds(600))
+        #expect(await session.isRunning)
+    }
+}

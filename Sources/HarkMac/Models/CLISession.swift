@@ -65,6 +65,9 @@ actor CLISession {
         self.folder = folder
     }
 
+    /// Whether a process is running right now.
+    var isRunning: Bool { process?.isRunning == true }
+
     /// Starts the process if it is not running, so the first question finds it ready.
     func warmUp() {
         try? ensureRunning()
