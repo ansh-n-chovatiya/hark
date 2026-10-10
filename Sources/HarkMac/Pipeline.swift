@@ -238,6 +238,12 @@ public actor Pipeline {
         } else if asksToRunAScript(transcript) {
             outcome = .notUnderstood(
                 "Hark runs a script only as a routine. Add it once in Settings under Routines, then say its name.")
+        } else if let search = WebSearch.request(in: asked.command) {
+            // A web search needs no model: the address is built from the words that were said.
+            timings.verb = "search"
+            outcome = await timed(&timings.actMs) { await searchWeb(search) }
+        } else if let done = await appAction(asked.command, timings: &timings) {
+            outcome = done
         } else if let command {
             outcome = await handle(command, timings: &timings)
         } else {
@@ -251,6 +257,114 @@ public actor Pipeline {
         lastTimings = timings
         remember(transcript, outcome)
         return outcome
+    }
+
+    /// "Open Notes and create a new note": opens the app, then chooses the menu item that fits what was
+    /// said. Nil when the words are not that kind of command, so the usual path carries on. No model is
+    /// involved: the app's own menu bar says what it can do.
+    private func appAction(_ transcript: String, timings: inout Timings) async -> Outcome? {
+        guard let request = AppAction.request(in: transcript) else { return nil }
+        // A command the rules already understand ("open Chrome and open a new tab") keeps its own rule.
+        if let verb = parser.parse(transcript)?.verb, verb != .open { return nil }
+        // "Open Slack and Linear": the second part is another app, which the usual path handles.
+        guard await !namesAnApp(request.action) else { return nil }
+        let running = await MainActor.run { try? MenuToolApps.running(named: request.app) }
+        if dryRun, running == nil {
+            return .done("Would: Open \(request.app), then choose \u{201C}\(request.action)\u{201D} in its menus")
+        }
+        timings.verb = "appAction"
+        let started = clock.now
+        let appName: String
+        if let name = running?.localizedName {
+            appName = name
+        } else {
+            do {
+                appName = try await openApp(named: request.app)
+            } catch {
+                // Not an app Hark can find: the words may mean something else.
+                return nil
+            }
+        }
+        defer { timings.actMs = milliseconds(since: started) }
+        guard let app = await MainActor.run(body: { try? MenuToolApps.running(named: appName) }) else {
+            return .notUnderstood("\(appName) did not finish opening.")
+        }
+        guard !KeySafety.isTerminal(app) else { return .notUnderstood("Hark does not choose menu items in a terminal.") }
+
+        // A freshly opened app takes a moment to show its menus.
+        var entries: [AppMenuBar.Entry] = []
+        for _ in 0..<20 {
+            entries = (try? AppMenus.entries(of: app.processIdentifier, appName: appName)) ?? []
+            if !entries.isEmpty { break }
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        guard !entries.isEmpty else { return .notUnderstood("Opened \(appName), but its menus could not be read.") }
+        let paths = entries.map(\.path)
+        let greyedOut = Set(entries.filter { !$0.enabled }.map { $0.path.joined(separator: " > ") })
+
+        func isGreyedOut(_ path: [String]) -> Bool { greyedOut.contains(path.joined(separator: " > ")) }
+        func greyedMessage(_ path: [String]) -> Outcome {
+            .notUnderstood("\u{201C}\(path.last ?? "")\u{201D} is greyed out in \(appName) right now.")
+        }
+
+        // Greyed-out items count only when one of them is the clear best fit: then it is said so, instead
+        // of quietly doing something else. They never make a working item look ambiguous.
+        var chosen: [String]
+        switch AppAction.choose(request.action, among: paths) {
+        case .none:
+            return .notUnderstood("Opened \(appName). It has no menu item like \u{201C}\(request.action)\u{201D}.")
+        case .item(let path):
+            chosen = path
+        case .unsure(let options):
+            if let first = options.first, isGreyedOut(first) { return greyedMessage(first) }
+            let live = options.filter { !isGreyedOut($0) }
+            guard live.count == 1, let only = live.first else {
+                let names = live.map { $0.joined(separator: " > ") }.joined(separator: ", or ")
+                return .notUnderstood("More than one menu item in \(appName) fits: \(names). Say which one.")
+            }
+            chosen = only
+        }
+        if isGreyedOut(chosen) { return greyedMessage(chosen) }
+
+        let arguments: JSONValue = .object(["app": .string(appName), "path": .array(chosen.map(JSONValue.string))])
+        let tool = ClickMenuTool()
+        // Closing and quitting are never done from a loose phrase: they ask first when a model chose
+        // them, and a rule has no one to ask.
+        guard tool.kind(for: arguments) != .destructive else {
+            return .notUnderstood("That would close or quit \(appName). Say it as its own command.")
+        }
+        if dryRun { return .done("Would: Choose \(chosen.joined(separator: " > ")) in \(appName)") }
+        do {
+            let result = try await tool.call(arguments)
+            return .done(result.summary ?? result.output)
+        } catch {
+            return .failed(error.localizedDescription)
+        }
+    }
+
+    /// Whether these words are just the name of an app, as in "open Slack and Linear".
+    private func namesAnApp(_ words: String) async -> Bool {
+        let wanted = AppAction.tokens(words)
+        let command = Command(verb: .open, query: words.lowercased(), kinds: [.app], raw: words)
+        for source in sources where source.kinds.contains(.app) {
+            for item in await source.items(for: command) where AppAction.tokens(item.title) == wanted { return true }
+        }
+        return false
+    }
+
+    private func searchWeb(_ request: WebSearchRequest) async -> Outcome {
+        guard let address = request.address else { return .notUnderstood("I could not build that search") }
+        if dryRun {
+            return .done("Would: Search Google for \u{201C}\(request.query)\u{201D}\(request.inChrome ? " in Chrome" : "")")
+        }
+        var arguments: [String: JSONValue] = ["url": .string(address.absoluteString)]
+        if request.inChrome { arguments["app"] = .string("Google Chrome") }
+        do {
+            _ = try await OpenAddressTool().call(.object(arguments))
+            return .done("Searched Google for \u{201C}\(request.query)\u{201D}")
+        } catch {
+            return .failed(error.localizedDescription)
+        }
     }
 
     public func pick(_ number: Int) async -> Outcome {

@@ -54,6 +54,10 @@ These can be put back, usually with "undo that".
 - Open an app, a file, a folder or a new tab.
 - Choose any other menu item, press any other shortcut, or press any other button, in an app that
   is not a terminal.
+- "Open Notes and create a new note": open the app, then choose the one menu item in its menu bar that
+  fits what you said, by rule and with no model. It never chooses items about closing, quitting or
+  deleting, never in a terminal, says so when the item is greyed out, and lists the options instead
+  of guessing when two fit.
 - Change the volume, mute, and light or dark appearance. Lock the screen.
 - Move and resize a window. Open a web page you saved under a name.
 - Copy the name, address or path of something that is open, so you can paste it.

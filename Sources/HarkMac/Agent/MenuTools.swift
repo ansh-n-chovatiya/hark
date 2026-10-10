@@ -223,7 +223,7 @@ enum MenuToolApps {
     }
 }
 
-private enum AppMenuBar {
+enum AppMenuBar {
     private static let timeout: Float = 2
     private static let lineLimit = 200
 
@@ -243,6 +243,28 @@ private enum AppMenuBar {
             return Array(lines.prefix(lineLimit)) + ["(list cut at \(lineLimit) lines)"]
         }
         return lines
+    }
+
+    struct Entry {
+        let path: [String]
+        let enabled: Bool
+    }
+
+    /// Every item, greyed out or not, with the menus it sits under, down to submenus one level deep.
+    /// Greyed-out ones are kept so a request for one of them can say so, instead of quietly doing a
+    /// different thing.
+    static func entries(of pid: pid_t, appName: String) throws -> [Entry] {
+        var found: [Entry] = []
+        for top in try topMenus(of: pid, appName: appName) where !title(of: top).isEmpty {
+            let topTitle = title(of: top)
+            for item in submenu(of: top) where !title(of: item).isEmpty {
+                found.append(Entry(path: [topTitle, title(of: item)], enabled: enabled(item)))
+                for inner in submenu(of: item) where !title(of: inner).isEmpty {
+                    found.append(Entry(path: [topTitle, title(of: item), title(of: inner)], enabled: enabled(inner)))
+                }
+            }
+        }
+        return found
     }
 
     static func choose(_ path: [String], in pid: pid_t, appName: String) throws {
@@ -313,6 +335,13 @@ private enum AppMenuBar {
             text = String(text.dropLast(ending.count)).trimmingCharacters(in: .whitespaces)
         }
         return text
+    }
+}
+
+/// What an app's menu bar offers, for choosing an item by the words the user said.
+enum AppMenus {
+    static func entries(of pid: pid_t, appName: String) throws -> [AppMenuBar.Entry] {
+        try AppMenuBar.entries(of: pid, appName: appName)
     }
 }
 

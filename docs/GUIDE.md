@@ -82,6 +82,14 @@ account can read. Clipboard text is never sent to any model.
 bar opens where you type the same commands. It is a different key from the one you hold to speak,
 so the two never get mixed up.
 
+**Doing something in an app.** Say "open Notes and create a new note", "open Safari and new window" or
+"open Finder and new window". Hark opens the app, reads its menu bar and chooses the one item that fits
+what you said ("create a note" finds File, New Note), all by rule, so it needs no model and takes a
+fraction of a second after the app is open. If nothing fits it says so; if two fit it lists them; if the
+item is greyed out it tells you. It never chooses items about closing, quitting or deleting, and never
+in a terminal. Only what is in the app's menus is reachable this way; a button that exists only inside a
+window still goes to the model.
+
 **Learning.** Hark sets itself up and offers shortcuts so you do not have to fill in the Folders, Names,
 Web pages and Routines screens by hand. On the first run it looks for your project folders. After
 that it notices which apps and websites you open together, which sites you visit on many days, and

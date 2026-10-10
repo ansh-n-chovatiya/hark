@@ -46,6 +46,8 @@ If it isn't sure which of several things you meant, it shows a numbered list. Pr
 | Tidy up | "Hide everything except Warp" |
 | Close things (asks first) | "Quit Slack" · "Close the screen recorder tab" |
 | Arrange windows | "Chrome on the left and the editor on the right" |
+| Do something in an app | "Open Notes and create a new note" · "Open Safari and new window" |
+| Search the web | "Search for swift concurrency on Google" · "Open Chrome and search the weather in Pune" |
 | Use menus and buttons | "Open a new window in Chrome" |
 | Change settings | "Set the volume to 30 percent" · "Switch to dark mode" · "Lock the screen" |
 | Copy and paste | "Copy the address of this tab" · "Paste the token I copied from the backend" |
