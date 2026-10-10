@@ -4,8 +4,12 @@ All notable changes are written here, newest first. Versions follow
 [Semantic Versioning](https://semver.org); while Hark is below 1.0, a minor bump may change
 behaviour.
 
-## Unreleased
+## 0.2.3 — 2026-10-10
 
+- Dictation now asks the app in front what has the keyboard (asking the whole system failed on some Macs, sending every
+  dictation to the clipboard). It types only into text boxes, editable web content and terminals; otherwise it copies.
+  Checked on TextEdit, Warp, VS Code, Brave and Finder; Terminal.app by rule only.
+- `hark --typing-check` says what dictation would do in the app in front, typing nothing.
 - "Open the standup file in TextEdit" and "open the projects folder in VS Code" by rule when the file or folder and
   the app each match clearly.
 - "Copy the address of this tab" (also name or path of this window or file) by rule, for the item in front. Not yet
