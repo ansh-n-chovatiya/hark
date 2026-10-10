@@ -18,7 +18,7 @@ import Testing
     }
 
     private let nameSuggestion = Suggestion(
-        id: "name:a>b", kind: .name, title: "t", detail: "d", said: "open slak", meant: "open slack")
+        id: "name:open slak>open slack", kind: .name, title: "t", detail: "d", said: "open slak", meant: "open slack")
     private let routineSuggestion = Suggestion(
         id: "routine:x", kind: .routine, title: "t", detail: "d", routineName: "morning",
         steps: ["open Slack", "open github", "quit Slack"], pages: ["github": "https://github.com"])

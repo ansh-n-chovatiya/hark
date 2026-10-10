@@ -135,7 +135,7 @@ public enum Learner {
                   similarity(said, meant) >= 0.3 || sharesAWord(said, meant)
             else { continue }
             made[said + ">" + meant] = Suggestion(
-                id: "report:\(said)>\(meant)", kind: .name,
+                id: "name:\(said)>\(meant)", kind: .name,
                 title: "When you say \u{201C}\(said)\u{201D}, hear \u{201C}\(meant)\u{201D}",
                 detail: "You told Hark this went wrong and what you wanted.", said: said, meant: meant)
         }

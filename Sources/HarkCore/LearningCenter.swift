@@ -14,6 +14,12 @@ public struct LearningState: Codable, Sendable, Equatable {
         public var links: [String: String]
         public var routineName: String?
 
+        /// The same words get the same id whichever source suggested them, so an old record still matches.
+        public var normalizedID: String {
+            if kind == .name, let key = aliasKey, let value = aliasValue { return "name:\(key)>\(value)" }
+            return id
+        }
+
         public init(
             id: String, kind: Suggestion.Kind, title: String, at: Date, aliasKey: String? = nil,
             aliasValue: String? = nil, links: [String: String] = [:], routineName: String? = nil
@@ -123,7 +129,7 @@ public final class LearningCenter: Sendable {
     }
 
     public func snapshot(config: Config, now: Date = Date()) -> LearningSnapshot {
-        let state = store.load()
+        let state = reconcile(config)
         let historyEntries = history.all()
         let known = Set(config.aliases.keys.map(Learner.normalize))
         let made = config.learns
@@ -132,14 +138,50 @@ public final class LearningCenter: Sendable {
                     + Learner.names(reports: reports?.all() ?? [], config: config)
                     + state.reviewed.filter { !known.contains($0.said ?? "") })
             : []
-        let taken = Set(state.accepted.map(\.id))
+        // Matched by the words, not by where the idea came from, so one that was added or turned down is
+        // not offered again under another source's id.
+        let taken = Set(state.accepted.map(\.normalizedID))
         let suggestions = made.filter { suggestion in
-            guard !taken.contains(suggestion.id) else { return false }
-            return (state.hidden[suggestion.id] ?? .distantPast) <= now
+            let id = Self.id(of: suggestion)
+            guard !taken.contains(id) else { return false }
+            return (state.hidden[id] ?? .distantPast) <= now
         }
         return LearningSnapshot(
             suggestions: suggestions, deadEnds: config.learns ? Learner.deadEnds(history: historyEntries) : [],
             accepted: state.accepted)
+    }
+
+    static func id(of suggestion: Suggestion) -> String {
+        if suggestion.kind == .name, let said = suggestion.said, let meant = suggestion.meant { return "name:\(said)>\(meant)" }
+        return suggestion.id
+    }
+
+    /// Drops the records of things the user has since taken out of the settings by hand, and does not offer
+    /// them again: taking something out is an answer.
+    private func reconcile(_ config: Config) -> LearningState {
+        let state = store.load()
+        let gone = state.accepted.filter { !Self.isStillInPlace($0, config) }
+        guard !gone.isEmpty else { return state }
+        store.change { state in
+            for record in gone {
+                state.accepted.removeAll { $0.id == record.id }
+                state.hidden[record.normalizedID] = .distantFuture
+            }
+        }
+        return store.load()
+    }
+
+    private static func isStillInPlace(_ record: LearningState.Accepted, _ config: Config) -> Bool {
+        switch record.kind {
+        case .name:
+            guard let key = record.aliasKey else { return true }
+            return config.aliases[key] == record.aliasValue
+        case .page:
+            return record.links.allSatisfy { config.links[$0.key] == $0.value }
+        case .routine:
+            let linksKept = record.links.allSatisfy { config.links[$0.key] == $0.value }
+            return linksKept && (record.routineName.map { name in config.routines.contains { $0.name == name } } ?? true)
+        }
     }
 
     /// The failed commands a model should look at now, or none when review is off or was done lately.
@@ -165,7 +207,7 @@ public final class LearningCenter: Sendable {
 
     /// Adds what the suggestion describes to `config`, and remembers how to take it back.
     public func accept(_ suggestion: Suggestion, into config: inout Config, now: Date = Date()) {
-        var record = LearningState.Accepted(id: suggestion.id, kind: suggestion.kind, title: suggestion.title, at: now)
+        var record = LearningState.Accepted(id: Self.id(of: suggestion), kind: suggestion.kind, title: suggestion.title, at: now)
         switch suggestion.kind {
         case .name:
             guard let said = suggestion.said, let meant = suggestion.meant else { return }
@@ -194,17 +236,21 @@ public final class LearningCenter: Sendable {
     /// Takes back exactly what accepting added. Anything the user changed since is left alone.
     public func remove(_ id: String, from config: inout Config) {
         let state = store.load()
-        guard let record = state.accepted.first(where: { $0.id == id }) else { return }
+        guard let record = state.accepted.first(where: { $0.id == id || $0.normalizedID == id }) else { return }
         if let key = record.aliasKey, config.aliases[key] == record.aliasValue { config.aliases[key] = nil }
         for (name, address) in record.links where config.links[name] == address { config.links[name] = nil }
         if let routine = record.routineName { config.routines.removeAll { $0.name == routine } }
-        store.change { $0.accepted.removeAll { $0.id == id } }
+        // Taking it out is an answer: it is not offered again.
+        store.change {
+            $0.accepted.removeAll { $0.id == record.id }
+            $0.hidden[record.normalizedID] = .distantFuture
+        }
     }
 
     /// "Not now" waits 14 days; "Never" is for good.
     public func dismiss(_ suggestion: Suggestion, forever: Bool, now: Date = Date()) {
         let until = forever ? Date.distantFuture : now.addingTimeInterval(Self.notNowFor)
-        store.change { $0.hidden[suggestion.id] = until }
+        store.change { $0.hidden[Self.id(of: suggestion)] = until }
     }
 
     /// Forgets what was noticed. Names, pages and routines already accepted stay in the settings.

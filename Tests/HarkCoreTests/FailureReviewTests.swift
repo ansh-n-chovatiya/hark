@@ -15,7 +15,7 @@ import Testing
         #expect(found.count == 1)
         #expect(found[0].said == "mt recycle b")
         #expect(found[0].meant == "empty recycle bin")
-        #expect(found[0].id.hasPrefix("report:"))
+        #expect(found[0].id == "name:mt recycle b>empty recycle bin")
     }
 
     @Test func aReportWithNothingWantedOrUnrelatedWordsIsIgnored() {
@@ -140,5 +140,66 @@ import Testing
     @Test func reviewIsOnByDefaultAndOldConfigsStayOn() throws {
         #expect(Config().reviewsFailures)
         #expect(try JSONDecoder().decode(Config.self, from: Data("{}".utf8)).reviewsFailures)
+    }
+
+    // MARK: Added, then removed by hand
+
+    private let alias = Suggestion(
+        id: "name:open slak>open slack", kind: .name, title: "t", detail: "d", said: "open slak", meant: "open slack")
+
+    @Test func aNameTakenOutOfTheSettingsByHandIsForgottenAndNotOfferedAgain() throws {
+        let folder = try scratch()
+        let center = center(folder)
+        failed("open slak", in: folder)
+        var config = Config()
+        center.accept(alias, into: &config)
+        #expect(center.snapshot(config: config).accepted.count == 1)
+        // The user deletes it in the Names tab.
+        config.aliases = [:]
+        let after = center.snapshot(config: config)
+        #expect(after.accepted.isEmpty)
+        #expect(after.suggestions.isEmpty)
+        // Not even later, when the same words turn up from another source.
+        let report = WrongLog(url: folder.appending(path: "w.jsonl"))
+        report.append(WrongLog.Entry(at: Date(), heard: "open slak", did: "x", wanted: "open slack"))
+        #expect(center.snapshot(config: config).suggestions.isEmpty)
+    }
+
+    @Test func wordsAlreadyAddedAreNotOfferedAgainFromAnotherSource() throws {
+        let folder = try scratch()
+        let center = center(folder)
+        var config = Config()
+        center.accept(alias, into: &config)
+        let again = Suggestion(
+            id: "ai:open slak>open slack", kind: .name, title: "t", detail: "d", said: "open slak", meant: "open slack")
+        center.saveReview([again])
+        config.aliases = ["open slak": "open slack"]
+        #expect(center.snapshot(config: config).suggestions.isEmpty)
+    }
+
+    @Test func aRecordMadeUnderAnOlderIdStillMatches() {
+        let record = LearningState.Accepted(
+            id: "ai:a>b", kind: .name, title: "t", at: Date(), aliasKey: "a", aliasValue: "b")
+        #expect(record.normalizedID == "name:a>b")
+    }
+
+    @Test func removingAnAddedItemKeepsItFromComingBack() throws {
+        let folder = try scratch()
+        let center = center(folder)
+        var config = Config()
+        center.accept(alias, into: &config)
+        center.remove(alias.id, from: &config)
+        center.saveReview([alias])
+        #expect(center.snapshot(config: config).suggestions.isEmpty)
+    }
+
+    @Test func aRoutineDeletedByHandIsForgotten() throws {
+        let center = center(try scratch())
+        var config = Config()
+        let routine = Suggestion(
+            id: "routine:x", kind: .routine, title: "t", detail: "d", routineName: "morning", steps: ["open Slack"])
+        center.accept(routine, into: &config)
+        config.routines = []
+        #expect(center.snapshot(config: config).accepted.isEmpty)
     }
 }

@@ -39,7 +39,7 @@ public enum FailureReviewer {
         let reply = try await chain.reply(to: messages, tools: [])
         return ReviewParser.parse(reply.text ?? "", asked: phrases).map { pair in
             Suggestion(
-                id: "ai:\(pair.said)>\(pair.meant)", kind: .name,
+                id: "name:\(pair.said)>\(pair.meant)", kind: .name,
                 title: "When you say \u{201C}\(pair.said)\u{201D}, hear \u{201C}\(pair.meant)\u{201D}",
                 detail: "Hark could not do this, and a model thinks this is what you meant.",
                 said: pair.said, meant: pair.meant)
