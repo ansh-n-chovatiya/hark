@@ -414,6 +414,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let name = key.lowercased()
         let modifiers: [(String, CGEventFlags)] = [
             ("option", .maskAlternate), ("command", .maskCommand), ("control", .maskControl), ("shift", .maskShift),
+            ("fn", .maskSecondaryFn),
         ]
         if let flag = modifiers.first(where: { name.hasSuffix($0.0) })?.1 {
             return !CGEventSource.flagsState(.hidSystemState).contains(flag)

@@ -154,7 +154,7 @@ Hark's settings window shows which are on.
 - **Menu bar icon**: shows how to use Hark or what it is waiting for, your last command, "Type a
   command", Settings and Quit.
 - **Settings window**, with five tabs:
-  - General: the key to hold, the key to tap for typing and the key to hold for dictation (right Option, right Command, left Control, right Shift and F13 to F15 are offered; a key already used by one of the three is greyed out in the others), starting
+  - General: the key to hold, the key to tap for typing and the key to hold for dictation (fn, left and right Option, Command and Control, right Shift and F13 to F15 are offered, apart from right Control, which Apple keyboards lack; a key already used by one of the three is greyed out in the others), starting
     Hark when you log in, the folders Hark can open by name, and projects you name often.
   - Permissions: which permissions are on, with buttons that open System Settings.
   - Understanding: the AI model, see below.

@@ -72,14 +72,15 @@ private struct Trigger {
         "leftcontrol": (59, 0x01, .maskControl),
         "rightshift": (60, 0x04, .maskShift),
         "leftshift": (56, 0x02, .maskShift),
+        // fn (the Globe key on newer Macs). Its flag is the one bit macOS gives it; there is no per-side bit.
+        "fn": (63, 0x800000, .maskSecondaryFn),
     ]
 
-    // fn is absent on purpose: it belongs to Wispr Flow.
     private static let plainKeys: [String: CGKeyCode] = [
         "f13": 105, "f14": 107, "f15": 113, "f16": 106, "f17": 64, "f18": 79, "f19": 80, "f20": 90,
     ]
 
-    static let names = ["rightOption", "leftOption", "rightCommand", "leftCommand", "rightControl", "leftControl",
+    static let names = ["fn", "rightOption", "leftOption", "rightCommand", "leftCommand", "rightControl", "leftControl",
                         "rightShift", "leftShift", "f13", "f14", "f15", "f16", "f17", "f18", "f19", "f20"]
 
     init?(name: String) {
