@@ -10,7 +10,7 @@ jobs:
     # Hark targets macOS 26 on Apple silicon.
     runs-on: macos-26
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Build
         run: swift build
       - name: Test
@@ -21,7 +21,7 @@ jobs:
   hygiene:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Nothing personal in the tree
         run: |
           if grep -rIn --exclude-dir=.git -E '/Users/[a-z]|sk-[A-Za-z0-9]{20,}' . ; then
