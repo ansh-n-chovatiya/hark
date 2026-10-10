@@ -87,19 +87,19 @@
   },
   {
    "kind": "window",
-   "title": "relay.py \u2014 Shop-backend",
+   "title": "relay.py — Shop-backend",
    "detail": "Code",
    "owner": "Code"
   },
   {
    "kind": "window",
-   "title": "App.tsx \u2014 shop-frontend",
+   "title": "App.tsx — shop-frontend",
    "detail": "Code",
    "owner": "Code"
   },
   {
    "kind": "window",
-   "title": "Welcome \u2014 worker",
+   "title": "Welcome — worker",
    "detail": "Code",
    "owner": "Code"
   },
@@ -130,13 +130,13 @@
   },
   {
    "kind": "tab",
-   "title": "Logs \u00b7 shop-backend \u00b7 Web Service - Render",
+   "title": "Logs · shop-backend · Web Service - Render",
    "detail": "dashboard.render.com",
    "owner": "Google Chrome"
   },
   {
    "kind": "tab",
-   "title": "Events \u00b7 pricing-engine - Render",
+   "title": "Events · pricing-engine - Render",
    "detail": "dashboard.render.com",
    "owner": "Google Chrome"
   },
@@ -161,7 +161,7 @@
   },
   {
    "kind": "tab",
-   "title": "Pull requests \u00b7 acme/Shop-backend \u00b7 GitHub",
+   "title": "Pull requests · acme/Shop-backend · GitHub",
    "detail": "github.com",
    "owner": "Google Chrome"
   },
@@ -615,6 +615,37 @@
    "mentions": [
     "address",
     "ENG-29"
+   ]
+  },
+  {
+   "say": "search for swift concurrency on Google",
+   "expect": "done",
+   "mentions": [
+    "Google",
+    "swift concurrency"
+   ]
+  },
+  {
+   "say": "open Chrome and search the weather in Pune",
+   "expect": "done",
+   "mentions": [
+    "Chrome",
+    "weather in pune"
+   ]
+  },
+  {
+   "say": "launch Slack",
+   "expect": "done",
+   "mentions": [
+    "Slack"
+   ]
+  },
+  {
+   "say": "hide everything except Slack",
+   "expect": "done",
+   "mentions": [
+    "Hid",
+    "Would"
    ]
   }
  ],

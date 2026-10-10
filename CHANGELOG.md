@@ -7,7 +7,8 @@ behaviour.
 ## Unreleased
 
 - Window layout by rule: "put Chrome on the left and VS Code on the right", "make this window full size".
-- Rules-only evaluation: 41 of 51 (80 percent).
+- "Open a new window in Chrome" and "create a note in Notes" by rule.
+- Rules-only evaluation: 46 of 55 (84 percent); CI now fails below 83.
 
 ## 0.2.0 — 2026-10-10
 
