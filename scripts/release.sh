@@ -12,5 +12,8 @@ rm -f "$archive"
 ditto -c -k --keepParent build/Hark.app "$archive"
 (cd build && shasum -a 256 "$(basename "$archive")" > "$(basename "$archive").sha256")
 
-gh release create "$tag" "$archive" "$archive.sha256" --title "Hark $tag" --generate-notes
+# The notes are the changelog section for this version.
+notes=$(awk -v v="${tag#v}" '$0 ~ "^## " v " " {found=1; next} /^## / {found=0} found' CHANGELOG.md)
+[ -n "$notes" ] || notes="See CHANGELOG.md."
+gh release create "$tag" "$archive" "$archive.sha256" --title "Hark $tag" --notes "$notes"
 echo "published $tag"
