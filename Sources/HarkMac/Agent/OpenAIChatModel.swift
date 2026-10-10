@@ -75,16 +75,20 @@ public struct OpenAIChatModel: ChatModel {
             body["tools"] = tools.map(Self.wire)
             body["tool_choice"] = "auto"
         }
-        // Hosted models think before answering unless told not to, which costs seconds here.
-        if !isLocal { body["reasoning_effort"] = "minimal" }
-        do {
-            return try parse(try await post(body))
-        } catch is FieldRejected {
-            // Some models refuse a setting they do not support; ask again without the optional ones.
-            body["temperature"] = nil
-            body["reasoning_effort"] = nil
-            return try parse(try await post(body))
+        // Hosted models think before answering unless told to think less, which costs seconds here.
+        // Which levels a model accepts differs ("minimal" is refused by some Gemini models), so a
+        // refusal moves on to the next level, and the last try leaves the setting out.
+        let efforts: [String?] = isLocal ? [nil] : ["minimal", "low", nil]
+        for (index, effort) in efforts.enumerated() {
+            body["reasoning_effort"] = effort
+            if index == efforts.count - 1 { body["temperature"] = nil }
+            do {
+                return try parse(try await post(body))
+            } catch is FieldRejected where index < efforts.count - 1 {
+                continue
+            }
         }
+        throw ChatModelError(message: "The model refused every setting Hark tried")
     }
 
     private struct FieldRejected: Error {}
@@ -113,7 +117,7 @@ public struct OpenAIChatModel: ChatModel {
         }
         guard (200..<300).contains(status) else {
             let detail = errorDetail(data)
-            if status == 400, detail.contains("reasoning_effort") || detail.contains("temperature") {
+            if status == 400, ["reasoning", "thinking", "temperature"].contains(where: detail.lowercased().contains) {
                 throw FieldRejected()
             }
             throw ChatModelError(message: "The model service returned error \(status)\(detail.isEmpty ? "" : ": \(detail)")")

@@ -46,19 +46,30 @@ struct UnderstandingTab: View {
         }
     }
 
-    /// A list to choose from when the service named its models, otherwise a box to type in. Several
-    /// names separated by commas are still allowed, so a comma list always shows as text.
+    /// A menu with a tick beside each model when the service named its models, otherwise a box to
+    /// type in. Every ticked model is asked at once and the first answer back is used.
     @ViewBuilder private var modelRow: some View {
-        if case .found(let names) = model.modelLookup, !model.config.model.contains(",") {
-            let current = model.config.model
-            Picker("Model", selection: Binding(
-                get: { current },
-                set: { name in model.update { $0.model = name } }
-            )) {
-                if current.isEmpty { Text("Choose a model").tag("") }
-                if !current.isEmpty, !names.contains(current) { Text("\(current) (not listed)").tag(current) }
-                ForEach(names, id: \.self) { Text($0).tag($0) }
+        if case .found(let names) = model.modelLookup {
+            let chosen = Self.names(in: model.config.model)
+            LabeledContent("Models") {
+                Menu {
+                    // A model typed by hand that the service did not list stays ticked, so it is not lost.
+                    ForEach(chosen.filter { !names.contains($0) } + names, id: \.self) { name in
+                        Toggle(name, isOn: Binding(
+                            get: { chosen.contains(name) },
+                            set: { on in setModel(name, on: on, from: chosen) }
+                        ))
+                    }
+                } label: {
+                    Text(summary(of: chosen))
+                }
+                .menuStyle(.button)
+                .fixedSize()
             }
+            HelperText(
+                text: "Tick one or more. Hark asks them all at once and uses the first answer. "
+                    + "Each ticked model is one more request to the service."
+            )
         } else {
             SettingsTextField(
                 "Model",
@@ -68,6 +79,26 @@ struct UnderstandingTab: View {
                 model.update { $0.model = name.trimmingCharacters(in: .whitespacesAndNewlines) }
             }
         }
+    }
+
+    private static func names(in text: String) -> [String] {
+        text.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+    }
+
+    private func summary(of chosen: [String]) -> String {
+        switch chosen.count {
+        case 0: "Choose models"
+        case 1: chosen[0]
+        default: "\(chosen[0]) + \(chosen.count - 1) more"
+        }
+    }
+
+    /// The last ticked model cannot be unticked: with none, the online model would silently turn off.
+    private func setModel(_ name: String, on: Bool, from chosen: [String]) {
+        var updated = chosen
+        if on, !updated.contains(name) { updated.append(name) }
+        if !on, updated.count > 1 { updated.removeAll { $0 == name } }
+        model.update { $0.model = updated.joined(separator: ", ") }
     }
 
     @ViewBuilder private var lookupStatus: some View {
