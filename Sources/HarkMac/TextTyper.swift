@@ -48,27 +48,72 @@ public enum TextTyper {
         }
     }
 
+    /// The element that has the keyboard. The app in front is asked first: asking the whole system often fails
+    /// (error -25204, "cannot complete") even when the permission is granted, while asking the app works.
+    private static func focusedElement() -> AXUIElement? {
+        if let app = NSWorkspace.shared.frontmostApplication {
+            var found: CFTypeRef?
+            let element = AXUIElementCreateApplication(app.processIdentifier)
+            AXUIElementSetMessagingTimeout(element, 1)
+            if AXUIElementCopyAttributeValue(element, kAXFocusedUIElementAttribute as CFString, &found) == .success,
+               let found, CFGetTypeID(found) == AXUIElementGetTypeID() {
+                // swiftlint:disable:next force_cast
+                return (found as! AXUIElement)
+            }
+        }
+        var found: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(
+            AXUIElementCreateSystemWide(), kAXFocusedUIElementAttribute as CFString, &found) == .success,
+              let found, CFGetTypeID(found) == AXUIElementGetTypeID()
+        else { return nil }
+        // swiftlint:disable:next force_cast
+        return (found as! AXUIElement)
+    }
+
+    /// What dictation would do right now, in words, without typing anything: for checking an app.
+    public static func verdict() -> String {
+        guard AXIsProcessTrusted() else { return "Accessibility is not allowed, so Hark could not type." }
+        guard let ref = focusedElement() else {
+            if let app = NSWorkspace.shared.frontmostApplication, KeySafety.isTerminal(app) {
+                return "Would type here (a terminal)."
+            }
+            return "Nothing is focused: the words would be copied to the clipboard."
+        }
+        var role: CFTypeRef?
+        _ = AXUIElementCopyAttributeValue(ref, kAXRoleAttribute as CFString, &role)
+        let name = (role as? String) ?? "unknown"
+        do {
+            try checkFocus()
+            return "Would type here (focused element: \(name))."
+        } catch TextTyperError.passwordField {
+            return "A password field: nothing is typed or copied (\(name))."
+        } catch {
+            return "No text box (focused element: \(name)): the words would be copied to the clipboard."
+        }
+    }
+
     /// Refuses a focused password box, and an app with nothing focused to type into.
     private static func checkFocus() throws {
-        let system = AXUIElementCreateSystemWide()
-        var focused: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(system, kAXFocusedUIElementAttribute as CFString, &focused) == .success,
-              let element = focused
-        else { throw TextTyperError.nothingFocused }
-        // swiftlint:disable:next force_cast
-        let ref = element as! AXUIElement
+        guard let ref = focusedElement() else {
+            // A terminal with nothing reported as focused still has a prompt; its letters can only land there.
+            if let app = NSWorkspace.shared.frontmostApplication, KeySafety.isTerminal(app) { return }
+            throw TextTyperError.nothingFocused
+        }
         var subrole: CFTypeRef?
         _ = AXUIElementCopyAttributeValue(ref, kAXSubroleAttribute as CFString, &subrole)
         if (subrole as? String) == (kAXSecureTextFieldSubrole as String) { throw TextTyperError.passwordField }
-        // Only a text box is typed at. Anything else, such as a row or a page, would turn the letters into the
-        // page's single-key shortcuts (archive, delete, mark as spam). A custom editor that reports another
-        // role still has a text selection, which is what is looked for.
+        // Only a text box is typed at. Anything else, such as a row, an outline or a page, would turn the letters into
+        // the app's or page's single-key shortcuts (archive, delete, mark as spam). So: a text role; or an element a
+        // browser marks as editable (editable page content has no text role); or a terminal, where letters only
+        // ever land on the prompt.
         var role: CFTypeRef?
         _ = AXUIElementCopyAttributeValue(ref, kAXRoleAttribute as CFString, &role)
         if let role = role as? String, textRoles.contains(role) { return }
-        var selection: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(ref, kAXSelectedTextRangeAttribute as CFString, &selection) == .success else {
-            throw TextTyperError.nothingFocused
+        if let app = NSWorkspace.shared.frontmostApplication, KeySafety.isTerminal(app) { return }
+        for attribute in ["AXEditableAncestor", "AXHighestEditableAncestor"] {
+            var editable: CFTypeRef?
+            if AXUIElementCopyAttributeValue(ref, attribute as CFString, &editable) == .success, editable != nil { return }
         }
+        throw TextTyperError.nothingFocused
     }
 }

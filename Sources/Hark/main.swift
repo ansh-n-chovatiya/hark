@@ -782,6 +782,13 @@ func runCommandLine(_ flag: String, _ values: [String]) async -> Int32 {
             print("No app is in front, or Accessibility is not allowed.")
         }
         return 0
+    case "--typing-check":
+        // Where the app in front would take dictation: the answer only, nothing is typed. Waits a few seconds so
+        // the app to check can be brought to the front first.
+        let wait = number(after: "--wait", in: values) ?? 0
+        if wait > 0 { try? await Task.sleep(for: .seconds(wait)) }
+        print(TextTyper.verdict())
+        return 0
     case "--permissions":
         for permission in Permission.allCases { print("\(permission.rawValue): \(Permissions.status(permission).rawValue)") }
         let chrome = NSAppleEventDescriptor(bundleIdentifier: "com.google.Chrome")
