@@ -443,12 +443,14 @@ func runCommandLine(_ flag: String, _ values: [String]) async -> Int32 {
         return await say(text, dryRun: values.contains("--dry"), answerYes: values.contains("--yes"))
     case "--eval":
         guard let path = values.first else {
-            print("usage: hark --eval <file> [--local [--model <name>]] [--pause <seconds>]")
+            print("usage: hark --eval <file> [--local [--model <name>] | --rules-only [--min <percent>]] [--pause <seconds>]")
             return 2
         }
         let model = values.firstIndex(of: "--model").flatMap { values.indices.contains($0 + 1) ? values[$0 + 1] : nil }
+        let rulesOnly = values.contains("--rules-only")
         return await evaluate(
-            path, local: values.contains("--local"), localModel: model, pause: number(after: "--pause", in: values) ?? 4)
+            path, local: values.contains("--local"), localModel: model, rulesOnly: rulesOnly,
+            minimum: number(after: "--min", in: values), pause: number(after: "--pause", in: values) ?? (rulesOnly ? 0 : 4))
     case "--wrong":
         let entries = WrongLog(url: Paths.wrong).all()
         if entries.isEmpty { print("no commands have been marked as wrong") }
@@ -525,10 +527,17 @@ func number(after flag: String, in values: [String]) -> Double? {
 
 /// Scores Hark on a file of commands. With `local` only a model on this Mac is used: the one in
 /// the settings, or `localModel` to try another.
-func evaluate(_ path: String, local: Bool, localModel: String?, pause: Double) async -> Int32 {
+func evaluate(
+    _ path: String, local: Bool, localModel: String?, rulesOnly: Bool, minimum: Double?, pause: Double
+) async -> Int32 {
     do {
         var config = try Config.load(from: Paths.config)
-        if local {
+        if rulesOnly {
+            // No model of any kind, so the score depends only on the rules and is the same on every Mac.
+            config = Config()
+            config.useModel = false
+            config.fallbackModel = ""
+        } else if local {
             config.modelURL = config.fallbackModelURL
             config.model = localModel ?? config.fallbackModel
             config.modelKey = ""
@@ -543,7 +552,13 @@ func evaluate(_ path: String, local: Bool, localModel: String?, pause: Double) a
         print(String(
             format: "\n%d of %d right (%.0f%%) · median %.1fs · slowest %.1fs · model: %@",
             passed, results.count, 100 * Double(passed) / Double(max(results.count, 1)),
-            times[times.count / 2], times.last ?? 0, local ? "\(config.model) on this Mac" : config.model))
+            times[times.count / 2], times.last ?? 0,
+            rulesOnly ? "none (rules only)" : local ? "\(config.model) on this Mac" : config.model))
+        let score = 100 * Double(passed) / Double(max(results.count, 1))
+        if let minimum, score < minimum {
+            print(String(format: "Below the required %.0f%%.", minimum))
+            return 1
+        }
         return 0
     } catch {
         print(error.localizedDescription)

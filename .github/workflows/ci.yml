@@ -16,8 +16,7 @@ jobs:
       - name: Test
         run: swift test
       - name: Evaluation set (rules only, no model)
-        run: swift run hark --eval evals/developer-day.json --local
-        continue-on-error: true
+        run: swift run hark --eval evals/developer-day.json --rules-only --min 56
 
   hygiene:
     runs-on: ubuntu-latest
@@ -28,6 +27,8 @@ jobs:
           if grep -rIn --exclude-dir=.git -E '/Users/[a-z]|sk-[A-Za-z0-9]{20,}' . ; then
             echo "Found a home path or key-like string"; exit 1
           fi
+      - name: Model tools match the approved capability list
+        run: scripts/check-capabilities.sh
       - name: Scripts are valid zsh
         run: |
           sudo apt-get install -y zsh >/dev/null
