@@ -326,6 +326,10 @@ Folder layout:
   small enough to run beside everything else on a 16 GB Mac (qwen2.5 3b and 7b through Ollama) each
   got 34. The set was written after those phrasings had been fixed, so read these as "nothing has
   regressed", not as how often Hark is right. Run `hark --eval` to see the score for your model.
+  Later the same day the set had grown to 51 commands. With no model at all (`--rules-only`) the rules
+  alone settled 39 of them (76 percent). With Claude Code (Haiku) as the only working model it was 51 of
+  51, with a median of 0.0 s because most are settled by rule, and a slowest of 6.7 s for one that needed
+  the model. One run on one Mac, so a guide to what changed, not a promise.
 - Understanding hard commands needs a capable model. The small local models tested misread
   commands with "all" and "except" badly enough that Hark does not let a local stand-in propose
   anything that closes or quits. Simple commands work with no model at all.

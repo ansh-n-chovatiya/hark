@@ -858,10 +858,11 @@ func evaluate(
         let passed = results.filter(\.passed).count
         let times = results.map(\.seconds).sorted()
         print(String(
-            format: "\n%d of %d right (%.0f%%) · median %.1fs · slowest %.1fs · model: %@",
+            format: "\n%d of %d right (%.0f%%) · median %.1fs · slowest %.1fs · models tried: %@",
             passed, results.count, 100 * Double(passed) / Double(max(results.count, 1)),
             times[times.count / 2], times.last ?? 0,
-            rulesOnly ? "none (rules only)" : local ? "\(config.model) on this Mac" : config.model))
+            rulesOnly ? "none (rules only)" : local ? "\(config.model) on this Mac"
+                : (ModelSetup.make(for: config).chain?.choices.map(\.label).joined(separator: ", then ") ?? "none")))
         let score = 100 * Double(passed) / Double(max(results.count, 1))
         if let minimum, score < minimum {
             print(String(format: "Below the required %.0f%%.", minimum))
