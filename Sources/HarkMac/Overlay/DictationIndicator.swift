@@ -39,7 +39,8 @@ public enum DictationState: Sendable, Equatable {
         panel.isMovableByWindowBackground = true
         panel.animationBehavior = .none
         host = NSHostingView(rootView: DictationPill(model: model))
-        host.sizingOptions = []
+        // The panel is sized from the pill, so the view has to report its own size.
+        host.sizingOptions = [.intrinsicContentSize]
         panel.contentView = host
         model.onCancel = { [weak self] in self?.onCancel?() }
         moveObserver = NotificationCenter.default.addObserver(
@@ -81,7 +82,9 @@ public enum DictationState: Sendable, Equatable {
         isPlacing = true
         defer { isPlacing = false }
         host.layoutSubtreeIfNeeded()
-        let size = host.fittingSize
+        var size = host.fittingSize
+        // Never a window with no size: it would be there and invisible.
+        if size.width < 40 || size.height < 20 { size = NSSize(width: 120, height: 44) }
         let corner: NSPoint
         if panel.isVisible {
             corner = NSPoint(x: panel.frame.maxX, y: panel.frame.maxY)
@@ -243,7 +246,7 @@ private final class LevelBarsView: NSView {
         CATransaction.setDisableActions(true)
         for index in 0..<Self.count {
             // A small ripple keeps the bars alive in silence, so it never looks frozen.
-            let ripple = animates ? 0.12 + 0.1 * sin(phase + CGFloat(index) * 0.9) : 0.2
+            let ripple = animates ? 0.3 + 0.18 * sin(phase + CGFloat(index) * 0.9) : 0.35
             let target = Self.shortest + (bounds.height - Self.shortest) * min(1, (level + ripple) * Self.weights[index])
             heights[index] += (target - heights[index]) * 0.5
             bars[index].frame = CGRect(

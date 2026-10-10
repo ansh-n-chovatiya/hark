@@ -533,6 +533,9 @@ private extension Outcome {
     }
 }
 
+/// Keeps the pill from `--show-dictation` alive while it is on screen.
+private enum Showing { nonisolated(unsafe) static var indicator: AnyObject? }
+
 func runCommandLine(_ flag: String, _ values: [String]) async -> Int32 {
     switch flag {
     case "--median":
@@ -575,6 +578,17 @@ func runCommandLine(_ flag: String, _ values: [String]) async -> Int32 {
             return 2
         }
         return await callTool(named: values[0], json: values[1])
+    case "--show-dictation":
+        // Puts the dictation pill on screen for a few seconds, to see it where the real one appears.
+        let seconds = number(after: "--seconds", in: values) ?? 6
+        await MainActor.run {
+            NSApplication.shared.setActivationPolicy(.accessory)
+            let indicator = DictationIndicator()
+            indicator.show(.listening)
+            Showing.indicator = indicator
+        }
+        try? await Task.sleep(for: .seconds(seconds))
+        return 0
     case "--render-settings":
         guard let folder = values.first else {
             print("usage: hark --render-settings <folder>")
