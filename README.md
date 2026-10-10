@@ -26,6 +26,8 @@ Hark is a tiny app that lives in the top bar of your Mac. **Press and hold a key
 
 Prefer not to talk? **Tap the key and type** the same thing instead.
 
+Want to write by voice? Choose a **dictation key** in Settings and Hark types what you say into any app, using the speech model on your Mac, so there is no limit on how much you dictate. Double-tap the key to keep talking hands-free.
+
 Your voice is turned into text **on your Mac**. Your audio never leaves it.
 
 ## 🎙 How it works

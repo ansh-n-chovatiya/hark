@@ -837,6 +837,7 @@ func number(after flag: String, in values: [String]) -> Double? {
 func evaluate(
     _ path: String, local: Bool, localModel: String?, rulesOnly: Bool, minimum: Double?, pause: Double
 ) async -> Int32 {
+    ModelCLIs.discover()
     do {
         var config = try ConfigStore.load()
         if rulesOnly {
