@@ -332,6 +332,68 @@ public actor Pipeline {
         }
     }
 
+    // MARK: Lists and "this"
+
+    private static func refersToTheFront(_ raw: String) -> Bool {
+        let words = AppAction.tokens(raw)
+        return words.contains("this") || words.contains("current") || words.starts(with: ["the", "front"])
+    }
+
+    /// The tab, window or app in front. A tab only counts while Chrome is in front.
+    private func frontItem(of kind: ItemKind) async -> Item? {
+        if kind == .tab {
+            let front = await MainActor.run { NSWorkspace.shared.frontmostApplication?.bundleIdentifier }
+            guard front == "com.google.Chrome" else { return nil }
+        }
+        let inFront = await openItems().filter { $0.kind == kind && $0.lastUsed != nil }
+        return inFront.max { ($0.lastUsed ?? .distantPast) < ($1.lastUsed ?? .distantPast) }
+    }
+
+    private static let listVerbs: Set<Verb> = [.open, .hide, .quit, .close]
+    private static let mostInAList = 5
+
+    /// "Open Slack and Linear" is two commands that each name one thing. When every part matches clearly it is
+    /// done by rule; if any part is unsure, nothing is done and the model gets the whole command. Quitting and
+    /// closing ask once for the lot.
+    private func actOnList(_ command: Command, timings: inout Timings) async -> Outcome? {
+        guard Self.listVerbs.contains(command.verb), !command.query.contains(" except ") else { return nil }
+        let parts = command.query.split(separator: " ").split(whereSeparator: { $0 == "and" }).map { $0.joined(separator: " ") }
+        guard parts.count >= 2, parts.count <= Self.mostInAList, parts.allSatisfy({ !$0.isEmpty }) else { return nil }
+        var items: [Item] = []
+        for part in parts {
+            let single = Command(verb: command.verb, query: part, kinds: command.kinds, owner: command.owner, raw: part)
+            let (ranking, matches) = await rankedMatches(for: single)
+            guard let item = isClear(matches) ? matches.first?.item : obviousChoice(
+                among: matches, kinds: ranking.kinds, query: ranking.query) else { return nil }
+            items.append(item)
+        }
+        guard Set(items.map(\.id)).count == items.count else { return nil }
+        timings.verb = command.verb.rawValue
+        let started = clock.now
+        defer { timings.actMs = milliseconds(since: started) }
+        if command.verb == .close || command.verb == .quit {
+            let names = items.map(\.title).joined(separator: ", ")
+            let (verb, chosen) = (command.verb, items)
+            pending = .later { [weak self] in
+                guard let self else { return .failed("Hark is shutting down.") }
+                return await self.run(chosen, with: verb)
+            }
+            return .confirm("\(verb == .quit ? "Quit" : "Close") \(names)?")
+        }
+        return await run(items, with: command.verb)
+    }
+
+    private func run(_ items: [Item], with verb: Verb) async -> Outcome {
+        var said: [String] = []
+        for item in items {
+            switch await act(verb, on: item, asking: false) {
+            case .done(let text): said.append(text)
+            case let other: return other
+            }
+        }
+        return .done(said.joined(separator: "; "))
+    }
+
     // MARK: The app in front
 
     private enum MenuPick {
@@ -629,6 +691,16 @@ public actor Pipeline {
             else { return .notUnderstood("There is no earlier copy to paste") }
             return await timed(&timings.actMs) { await act(.paste, on: previous) }
         }
+
+        // "Close this tab", "hide this app": the one in front, by rule.
+        if command.query.isEmpty, command.owner == nil, command.kinds.count == 1, let kind = command.kinds.first,
+           [.close, .hide, .quit].contains(command.verb), Self.refersToTheFront(command.raw),
+           let item = await frontItem(of: kind) {
+            return await timed(&timings.actMs) { await act(command.verb, on: item) }
+        }
+
+        // "Open Slack and Linear", "quit Slack and Linear": a short list of things that each match clearly.
+        if let done = await actOnList(command, timings: &timings) { return done }
 
         // Several steps or a whole group is beyond one verb and one target, so the agent takes it.
         let compound = looksCompound(command.raw)

@@ -82,6 +82,10 @@ account can read. Clipboard text is never sent to any model.
 bar opens where you type the same commands. It is a different key from the one you hold to speak,
 so the two never get mixed up.
 
+**Lists and "this".** "Open Slack and Linear", "hide Safari and Notes" and "quit Slack and Linear" are done by rule
+when each name matches clearly (quitting and closing ask once for the whole list). "Close this tab", "close this
+window" and "hide this app" mean the one in front. Anything less certain goes to the model as before.
+
 **Doing something in an app.** Say "open Notes and create a new note", "open Safari and new window" or
 "open Finder and new window". Hark opens the app, reads its menu bar and chooses the one item that fits
 what you said ("create a note" finds File, New Note), all by rule, so it needs no model and takes a
