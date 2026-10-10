@@ -1,0 +1,624 @@
+import AppKit
+import ApplicationServices
+import HarkCore
+import HarkMac
+import os
+
+private let logger = Logger(subsystem: "dev.hark.app", category: "app")
+
+/// Writes a log line whenever the main thread stops answering for a second or more. Key presses
+/// and the panel both wait on the main thread, so a stall there looks like a stuck panel; the
+/// log says when it happened and for how long.
+private final class StallLog: Sendable {
+    private static let checkEvery: DispatchTimeInterval = .milliseconds(500)
+    private static let worthLogging: Duration = .seconds(1)
+
+    private let timer = DispatchSource.makeTimerSource(queue: DispatchQueue(label: "hark.stall-log", qos: .utility))
+    private let isWaiting = OSAllocatedUnfairLock(initialState: false)
+
+    func start() {
+        timer.schedule(deadline: .now() + Self.checkEvery, repeating: Self.checkEvery)
+        timer.setEventHandler { [isWaiting] in
+            let alreadyWaiting = isWaiting.withLock { waiting in
+                defer { waiting = true }
+                return waiting
+            }
+            guard !alreadyWaiting else { return }
+            let asked = ContinuousClock.now
+            DispatchQueue.main.async {
+                isWaiting.withLock { $0 = false }
+                let waited = ContinuousClock.now - asked
+                if waited >= Self.worthLogging {
+                    logger.error("the main thread did not answer for \(waited.components.seconds, privacy: .public) s")
+                }
+            }
+        }
+        timer.resume()
+    }
+}
+
+@MainActor
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    private let overlay = Overlay()
+    private let commandBar = CommandBar()
+    private let transcriber = ParakeetTranscriber { status in
+        logger.notice("speech: \(status.isEmpty ? "Parakeet ready" : status, privacy: .public)")
+    }
+    private let clock = ContinuousClock()
+    private var menuBar: MenuBar?
+    private var pipeline: Pipeline?
+    private var hotkey: Hotkey?
+    private var typeHotkey: Hotkey?
+    private var clipboardWatcher: ClipboardWatcher?
+    private var clipSource: ClipSource?
+    private var settings: SettingsWindow?
+    private var config = Config()
+    private let log = TimingLog(url: Paths.timings)
+    private var capture: Task<Bool, Never>?
+    private var isHolding = false
+    private var pressedAt: ContinuousClock.Instant?
+    private var lastHeard = ""
+    private var holdWatch: Task<Void, Never>?
+    private let stallLog = StallLog()
+
+    /// No command takes this long to say. A hold that lasts longer means the key's release was
+    /// missed, and listening has to end on its own.
+    private static let longestHold: Duration = .seconds(45)
+
+    /// Turning the recording into words takes a fraction of a second. Past this something has
+    /// stalled, and a panel stuck on "Listening" is worse than being asked to say it again.
+    private static let longestWaitForWords: Duration = .seconds(5)
+
+    /// Nobody says a command in less time than this.
+    private static let tapLimit: Duration = .milliseconds(250)
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        menuBar = MenuBar()
+        if CommandLine.arguments.contains("--demo-overlay") {
+            overlay.runDemo()
+            return
+        }
+
+        config = loadConfig()
+        install(config)
+        commandBar.onSubmit = { [weak self] text in self?.runTyped(text) }
+        menuBar?.onTypeCommand = { [weak self] in self?.commandBar.show() }
+        menuBar?.onSettings = { [weak self] in self?.showSettings() }
+        overlay.onPick = { [weak self] number in
+            Task {
+                guard let self, let pipeline = self.pipeline else { return }
+                self.present(await pipeline.pick(number))
+            }
+        }
+
+        Task { await startClipboardMemory() }
+        Task {
+            do {
+                try await transcriber.prepare()
+                logger.notice("speech ready")
+            } catch {
+                logger.error("speech not ready: \(error.localizedDescription, privacy: .public)")
+                overlay.show(.error(error.localizedDescription))
+            }
+            for await text in transcriber.partials where isHolding {
+                lastHeard = text
+                overlay.show(.hearing(text))
+            }
+        }
+        Task { await startHotkey(key: config.hotkey) }
+        stallLog.start()
+    }
+
+    /// Builds the pipeline for these settings. Called at launch and again whenever they change.
+    private func install(_ config: Config) {
+        let pipeline = Pipeline(
+            config: config, sources: Registry.sources(config: config), log: log,
+            saveRoutine: { [weak self] routine in await self?.keep(routine) },
+            announce: { [weak self] result in await self?.announce(result) })
+        self.pipeline = pipeline
+        Task {
+            if let clipSource { await pipeline.add(clipSource) }
+            // Not awaited by the caller: a source can sit on a macOS permission prompt for seconds.
+            await pipeline.prepareForCommand()
+        }
+    }
+
+    /// Adds a routine Hark wrote (a saved setup) to the settings, replacing one of the same name.
+    private func keep(_ routine: Routine) {
+        var changed = config
+        changed.routines.removeAll { $0.name.caseInsensitiveCompare(routine.name) == .orderedSame }
+        changed.routines.append(routine)
+        apply(changed)
+    }
+
+    /// For a result that arrives after its command has returned, such as a routine left to run.
+    private func announce(_ result: String) {
+        NSSound(named: "Glass")?.play()
+        overlay.show(.answer(result))
+    }
+
+    private func showSettings(_ section: SettingsSection = .general) {
+        if settings == nil {
+            settings = SettingsWindow(config: config, log: log) { [weak self] changed in self?.apply(changed) }
+        }
+        // The file may have changed since the window was made: a saved setup, or a hand edit.
+        settings?.reload(config)
+        settings?.show(section)
+    }
+
+    private func apply(_ changed: Config) {
+        let keyChanged = changed.hotkey != config.hotkey
+        config = changed
+        do {
+            try changed.save(to: Paths.config)
+        } catch {
+            overlay.show(.error("Your settings could not be saved: \(error.localizedDescription)"))
+        }
+        install(changed)
+        guard keyChanged else {
+            startTypeKey()
+            return
+        }
+        hotkey?.stop()
+        hotkey = nil
+        Task { await startHotkey(key: changed.hotkey) }
+    }
+
+    private func startClipboardMemory() async {
+        do {
+            let clipboard = try Registry.clipboard(config: config)
+            clipboard.watcher.start()
+            clipboardWatcher = clipboard.watcher
+            clipSource = clipboard.source
+            await pipeline?.add(clipboard.source)
+            logger.notice("clipboard memory ready")
+        } catch {
+            logger.error("clipboard memory is off: \(error.localizedDescription, privacy: .public)")
+            overlay.show(.error("Clipboard memory is off: \(error.localizedDescription)"))
+        }
+    }
+
+    private func loadConfig() -> Config {
+        do {
+            return try Config.load(from: Paths.config)
+        } catch {
+            overlay.show(.error("The settings file could not be read, so defaults are in use"))
+            return Config()
+        }
+    }
+
+    private func startHotkey(key: String) async {
+        if !AXIsProcessTrusted() {
+            logger.notice("waiting for the accessibility permission")
+            menuBar?.setStatus("Turn on Accessibility for Hark…") { Permissions.openSettings(for: .accessibility) }
+            showSettings(.permissions)
+            // The prompt option also adds Hark to the Accessibility list, so the user only flips a switch.
+            // The key is spelled out because the SDK's constant is a global var Swift 6 will not read.
+            let prompt = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
+            AXIsProcessTrustedWithOptions(prompt)
+            while !AXIsProcessTrusted() {
+                try? await Task.sleep(for: .seconds(1))
+            }
+        }
+        let hotkey = Hotkey(
+            key: key,
+            onDown: { [weak self] in Self.onMain { self?.keyDown() } },
+            onUp: { [weak self] in Self.onMain { self?.keyUp() } },
+            onCancel: { [weak self] in Self.onMain { self?.keyCancelled() } })
+        do {
+            try hotkey.start()
+            self.hotkey = hotkey
+            logger.notice("key ready: \(key, privacy: .public)")
+            startTypeKey()
+            let typing = config.typeKey.isEmpty ? "" : ", tap \(Self.spokenName(ofKey: config.typeKey)) to type"
+            menuBar?.setStatus("Hold \(Self.spokenName(ofKey: key)) to speak\(typing)")
+        } catch {
+            logger.error("key not ready: \(error.localizedDescription, privacy: .public)")
+            menuBar?.setStatus(error.localizedDescription)
+            overlay.show(.error(error.localizedDescription))
+        }
+    }
+
+    /// Typing has its own key so that it can never be mistaken for the start of speaking. Used
+    /// inside a shortcut the key does nothing here, because Hotkey reports that as a cancel.
+    private func startTypeKey() {
+        typeHotkey?.stop()
+        typeHotkey = nil
+        guard !config.typeKey.isEmpty, config.typeKey != config.hotkey else { return }
+        let key = Hotkey(
+            key: config.typeKey,
+            onDown: {},
+            onUp: { [weak self] in Self.onMain { self?.commandBar.show() } },
+            onCancel: {})
+        do {
+            try key.start()
+            typeHotkey = key
+        } catch {
+            logger.error("typing key not ready: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    /// Hands a key event to the main thread in the order it happened. Separate tasks carry no such
+    /// promise: after a quick tap the release could run before the press, leaving the panel on
+    /// "Listening" with nothing held.
+    private nonisolated static func onMain(_ work: @escaping @MainActor @Sendable () -> Void) {
+        DispatchQueue.main.async { MainActor.assumeIsolated(work) }
+    }
+
+    /// "rightOption" reads as "right Option" in the menu.
+    private static func spokenName(ofKey key: String) -> String {
+        for side in ["right", "left"] where key.hasPrefix(side) && key.count > side.count {
+            return "\(side) \(key.dropFirst(side.count))"
+        }
+        return key.uppercased()
+    }
+
+    private func keyDown() {
+        isHolding = true
+        lastHeard = ""
+        pressedAt = clock.now
+        holdWatch?.cancel()
+        holdWatch = Task { [weak self] in await self?.watchHold() }
+        commandBar.hide()
+        overlay.show(.listening)
+        Task { [pipeline, transcriber] in
+            guard let pipeline else { return }
+            await pipeline.prepareForCommand()
+            await transcriber.setVocabulary(await pipeline.vocabulary())
+        }
+        capture = Task {
+            do {
+                try await transcriber.start()
+                return true
+            } catch {
+                overlay.show(.error(error.localizedDescription))
+                return false
+            }
+        }
+    }
+
+    /// Ends listening if the key is no longer physically down. macOS can fail to report a key's
+    /// release (while another program is sending its own key presses, for one), and without this
+    /// the panel would sit on "Listening" with nothing held.
+    private func watchHold() async {
+        let started = clock.now
+        while !Task.isCancelled, isHolding {
+            try? await Task.sleep(for: .milliseconds(150))
+            guard !Task.isCancelled, isHolding else { return }
+            if Self.isPhysicallyUp(config.hotkey) {
+                logger.notice("the key is up but its release was not reported; carrying on as if it had been")
+                keyUp()
+                return
+            }
+            if clock.now - started > Self.longestHold {
+                logger.error("listening ran past its limit and was stopped")
+                keyCancelled()
+                overlay.show(.error("Listening stopped. Hold the key again to speak."))
+                return
+            }
+        }
+    }
+
+    /// Whether the named key is certainly not being held. Option, Command, Control and Shift are
+    /// reported by macOS as a state, not as keys, so they are read from the modifier state (which
+    /// does not tell left from right: the other side being held counts as held). An unknown name
+    /// answers false, which leaves the reported release in charge.
+    private static func isPhysicallyUp(_ key: String) -> Bool {
+        let name = key.lowercased()
+        let modifiers: [(String, CGEventFlags)] = [
+            ("option", .maskAlternate), ("command", .maskCommand), ("control", .maskControl), ("shift", .maskShift),
+        ]
+        if let flag = modifiers.first(where: { name.hasSuffix($0.0) })?.1 {
+            return !CGEventSource.flagsState(.hidSystemState).contains(flag)
+        }
+        guard let code = functionKeyCodes[name] else { return false }
+        return !CGEventSource.keyState(.hidSystemState, key: code)
+    }
+
+    private static let functionKeyCodes: [String: CGKeyCode] = [
+        "f13": 105, "f14": 107, "f15": 113, "f16": 106, "f17": 64, "f18": 79, "f19": 80, "f20": 90,
+    ]
+
+    private func keyUp() {
+        guard isHolding else { return }
+        isHolding = false
+        holdWatch?.cancel()
+        let released = clock.now
+        // Too short to have said anything: a brush of the key, not a command.
+        if let pressedAt, released - pressedAt < Self.tapLimit {
+            keyCancelled()
+            return
+        }
+        // The release is acknowledged at once, so the panel never looks as if the key is still held.
+        overlay.show(.working(lastHeard))
+        Task {
+            do {
+                guard let text = try await wordsFromRecording() else {
+                    logger.error("the recording did not turn into words in time")
+                    overlay.show(.error("I could not hear that. Please try again."))
+                    return
+                }
+                guard !text.isEmpty else {
+                    overlay.show(.hidden)
+                    return
+                }
+                let waited = clock.now - released
+                let transcribeMs = Double(waited.components.seconds) * 1000
+                    + Double(waited.components.attoseconds) / 1e15
+                // The final words can differ from the live ones, which come from a quicker, rougher recogniser.
+                overlay.show(.working(text))
+                await carryOut(text, transcribeMs: transcribeMs, heardBy: transcriber.source)
+            } catch {
+                overlay.show(.error(error.localizedDescription))
+            }
+        }
+    }
+
+    /// The words of the recording just finished, or nil if they did not arrive in time. An empty
+    /// string means nothing was said.
+    private func wordsFromRecording() async throws -> String? {
+        try await withThrowingTaskGroup(of: String?.self) { group in
+            group.addTask { [capture, transcriber] in
+                guard await capture?.value == true else { return "" }
+                return try await transcriber.finish()
+            }
+            group.addTask {
+                try await Task.sleep(for: Self.longestWaitForWords)
+                return nil
+            }
+            defer { group.cancelAll() }
+            return try await group.next() ?? nil
+        }
+    }
+
+    private func carryOut(_ text: String, transcribeMs: Double, heardBy source: String) async {
+        guard let pipeline else { return }
+        menuBar?.setLastCommand(text)
+        let outcome = await pipeline.run(transcript: text, transcribeMs: transcribeMs)
+        logger.notice("command finished: \(outcome.logLabel, privacy: .public), from \(source, privacy: .public)")
+        present(outcome)
+    }
+
+    /// A typed command takes the same path as a spoken one, minus the hearing.
+    private func runTyped(_ text: String) {
+        overlay.show(.working(text))
+        Task {
+            await pipeline?.prepareForCommand()
+            await carryOut(text, transcribeMs: 0, heardBy: "typing")
+        }
+    }
+
+    private func keyCancelled() {
+        isHolding = false
+        holdWatch?.cancel()
+        overlay.show(.hidden)
+        Task {
+            guard await capture?.value == true else { return }
+            // The audio is thrown away on purpose, so a failure to finish it changes nothing.
+            _ = try? await transcriber.finish()
+        }
+    }
+
+    private func present(_ outcome: Outcome) {
+        switch outcome {
+        case .done(let text): overlay.show(.result(text))
+        case .answer(let text): overlay.show(.answer(text))
+        case .choose(let matches): overlay.show(.choices(matches))
+        case .confirm(let question): overlay.show(.confirm(question))
+        case .notUnderstood(let text), .failed(let text): overlay.show(.error(text))
+        }
+    }
+}
+
+private extension Outcome {
+    var logLabel: String {
+        switch self {
+        case .done, .answer: "done"
+        case .choose: "choose"
+        case .confirm: "confirm"
+        case .notUnderstood: "not understood"
+        case .failed(let message): "failed: \(message)"
+        }
+    }
+}
+
+func runCommandLine(_ flag: String, _ values: [String]) async -> Int32 {
+    switch flag {
+    case "--median":
+        guard let verb = values.first else {
+            print("usage: hark --median <verb>")
+            return 2
+        }
+        guard let value = TimingLog(url: Paths.timings).medianTotalMs(verb: verb) else {
+            print("no timings logged for \(verb)")
+            return 1
+        }
+        print(String(format: "%.0f ms", value))
+        return 0
+    case "--say":
+        guard let text = values.first else {
+            print("usage: hark --say \"<command>\"")
+            return 2
+        }
+        return await say(text, dryRun: values.contains("--dry"), answerYes: values.contains("--yes"))
+    case "--eval":
+        guard let path = values.first else {
+            print("usage: hark --eval <file> [--local [--model <name>]] [--pause <seconds>]")
+            return 2
+        }
+        let model = values.firstIndex(of: "--model").flatMap { values.indices.contains($0 + 1) ? values[$0 + 1] : nil }
+        return await evaluate(
+            path, local: values.contains("--local"), localModel: model, pause: number(after: "--pause", in: values) ?? 4)
+    case "--wrong":
+        let entries = WrongLog(url: Paths.wrong).all()
+        if entries.isEmpty { print("no commands have been marked as wrong") }
+        for entry in entries {
+            print("heard:  \(entry.heard)\ndid:    \(entry.did)\nwanted: \(entry.wanted.isEmpty ? "(not said)" : entry.wanted)\n")
+        }
+        return 0
+    case "--tool":
+        guard values.count >= 2 else {
+            print("usage: hark --tool <name> '<arguments as JSON>'")
+            return 2
+        }
+        return await callTool(named: values[0], json: values[1])
+    case "--render-settings":
+        guard let folder = values.first else {
+            print("usage: hark --render-settings <folder>")
+            return 2
+        }
+        do {
+            try await MainActor.run { try SettingsWindow.renderPreviews(to: URL(fileURLWithPath: folder)) }
+            return 0
+        } catch {
+            print(error.localizedDescription)
+            return 1
+        }
+    case "--transcribe":
+        guard let path = values.first else {
+            print("usage: hark --transcribe <audio file>")
+            return 2
+        }
+        do {
+            let result = try await ParakeetTranscriber().transcribe(file: URL(fileURLWithPath: path))
+            print(result.text)
+            print(String(format: "%.0f ms", result.ms))
+            return 0
+        } catch {
+            print(error.localizedDescription)
+            return 1
+        }
+    default:
+        print("unknown option \(flag)")
+        return 2
+    }
+}
+
+/// With `dryRun` the command is worked out and reported but nothing on the Mac changes.
+/// Calls one of the model's tools directly and prints what the model would read back, for
+/// working out why a command went wrong. The safety fences that depend on the spoken command
+/// are not applied here, so this is a developer's check, not a way to use Hark.
+func callTool(named name: String, json: String) async -> Int32 {
+    let tools: [any Tool] = [
+        ListMenuTool(), ClickMenuTool(), PressKeysTool(), OpenPathTool(), OpenAddressTool(),
+        SetVolumeTool(), SetMuteTool(), SetAppearanceTool(), ArrangeWindowTool(),
+    ] + ScreenTools.all()
+    guard let tool = tools.first(where: { $0.spec.name == name }) else {
+        print("no tool named \(name); there are: \(tools.map(\.spec.name).joined(separator: ", "))")
+        return 2
+    }
+    do {
+        let arguments = try JSONDecoder().decode(JSONValue.self, from: Data(json.utf8))
+        print("would: \(tool.describe(arguments)) [\(tool.kind(for: arguments))]")
+        print(try await tool.call(arguments).output)
+        return 0
+    } catch {
+        print("error: \(error.localizedDescription)")
+        return 1
+    }
+}
+
+func number(after flag: String, in values: [String]) -> Double? {
+    guard let index = values.firstIndex(of: flag), values.indices.contains(index + 1) else { return nil }
+    return Double(values[index + 1])
+}
+
+/// Scores Hark on a file of commands. With `local` only a model on this Mac is used: the one in
+/// the settings, or `localModel` to try another.
+func evaluate(_ path: String, local: Bool, localModel: String?, pause: Double) async -> Int32 {
+    do {
+        var config = try Config.load(from: Paths.config)
+        if local {
+            config.modelURL = config.fallbackModelURL
+            config.model = localModel ?? config.fallbackModel
+            config.modelKey = ""
+        }
+        let evaluation = try Evaluation.load(from: URL(fileURLWithPath: path))
+        let results = await evaluation.run(config: config, pause: .seconds(pause)) { result in
+            let mark = result.passed ? "ok  " : "MISS"
+            print(String(format: "%@ %4.1fs  %@\n            -> %@", mark, result.seconds, result.say, String(result.got.prefix(110))))
+        }
+        let passed = results.filter(\.passed).count
+        let times = results.map(\.seconds).sorted()
+        print(String(
+            format: "\n%d of %d right (%.0f%%) · median %.1fs · slowest %.1fs · model: %@",
+            passed, results.count, 100 * Double(passed) / Double(max(results.count, 1)),
+            times[times.count / 2], times.last ?? 0, local ? "\(config.model) on this Mac" : config.model))
+        return 0
+    } catch {
+        print(error.localizedDescription)
+        return 1
+    }
+}
+
+/// `answerYes` answers a yes-or-no question as the user pressing 1 would.
+func say(_ text: String, dryRun: Bool, answerYes: Bool) async -> Int32 {
+    let config: Config
+    do {
+        config = try Config.load(from: Paths.config)
+    } catch {
+        print("could not read \(Paths.config.path): \(error.localizedDescription)")
+        return 1
+    }
+    // A dry run is a test, so it stays out of the log that speed and accuracy are judged from.
+    let logURL = dryRun ? FileManager.default.temporaryDirectory.appending(path: "hark-dry-run.jsonl") : Paths.timings
+    let log = TimingLog(url: logURL)
+    let pipeline = Pipeline(config: config, sources: Registry.sources(config: config), log: log, dryRun: dryRun)
+    await pipeline.refreshSources()
+    var outcome = await pipeline.run(transcript: text, transcribeMs: 0)
+    if answerYes, case .confirm(let question) = outcome {
+        print("Asks: \(question) (answered yes)")
+        outcome = await pipeline.pick(1)
+    }
+
+    switch outcome {
+    case .done(let message), .notUnderstood(let message), .failed(let message), .answer(let message):
+        print(message)
+    case .confirm(let question):
+        print("Asks: \(question)")
+    case .choose(let matches):
+        for (index, match) in matches.enumerated() {
+            print("\(index + 1). \(match.item.title)  \(match.item.detail)  \(match.item.owner)")
+        }
+    }
+    if let timings = await pipeline.lastTimings {
+        print(String(
+            format: "parse %.2f ms · match %.2f ms · model %.0f ms · act %.1f ms · total %.1f ms",
+            timings.parseMs, timings.matchMs, timings.modelMs ?? 0, timings.actMs, timings.totalMs))
+        if let tools = timings.tools, !tools.isEmpty { print("tools: \(tools.joined(separator: ", "))") }
+    }
+    if CommandLine.arguments.contains("--trace") {
+        for message in await pipeline.lastConversation {
+            switch message {
+            case .system: break
+            case .user(let text): print("USER   \(text.suffix(160))")
+            case .assistant(let text, let calls):
+                print("MODEL  \(text ?? "")" + calls.map { " \($0.name)(\($0.arguments))" }.joined())
+            case .tool(_, let name, let output): print("TOOL   \(name): \(output.prefix(300))")
+            }
+        }
+    }
+    // Reading the log waits for the pending write, so the line is on disk before the process ends.
+    _ = log.all()
+    switch outcome {
+    case .done, .answer: return 0
+    default: break
+    }
+    return 1
+}
+
+let arguments = Array(CommandLine.arguments.dropFirst())
+if let flag = arguments.first, flag.hasPrefix("--"), flag != "--demo-overlay" {
+    Task {
+        exit(await runCommandLine(flag, Array(arguments.dropFirst())))
+    }
+    // A real run loop, not dispatchMain: macOS only tells a process which apps are running
+    // through its main run loop, and a command that opens an app then needs to find it.
+    RunLoop.main.run()
+}
+
+let app = NSApplication.shared
+let delegate = AppDelegate()
+app.delegate = delegate
+app.setActivationPolicy(.accessory)
+app.run()

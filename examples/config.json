@@ -1,0 +1,37 @@
+{
+  "hotkey": "rightOption",
+  "searchFolders": ["~/Projects"],
+  "repos": [
+    "~/Projects/shop-frontend",
+    "~/Projects/Shop-backend",
+    "~/Projects/pricing-engine"
+  ],
+  "aliases": {
+    "the backend": "Shop-backend",
+    "the frontend": "shop-frontend",
+    "the engine": "pricing-engine"
+  },
+  "routines": [
+    {
+      "name": "stop port",
+      "steps": [{ "shell": "lsof -ti :{arg} | xargs kill", "destructive": true }]
+    },
+    {
+      "name": "branches",
+      "steps": [{ "shell": "git -C {repo} branch --show-current" }]
+    },
+    {
+      "name": "pull all",
+      "steps": [{ "shell": "git -C {repo} pull --ff-only", "destructive": true }]
+    },
+    {
+      "name": "is it up",
+      "steps": [{ "shell": "curl -s -o /dev/null -w \"%{http_code}\" http://localhost:{arg}" }]
+    }
+  ],
+  "clipLimit": 5000,
+  "useModel": true,
+  "model": "qwen2.5:3b",
+  "modelURL": "http://127.0.0.1:11434/v1",
+  "modelKey": ""
+}

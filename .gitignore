@@ -1,0 +1,24 @@
+# Build output
+.build/
+build/
+*.zip
+.swiftpm/
+*.xcodeproj/xcuserdata/
+
+# Personal settings, history and keys live in ~/.config/hark, never in the repo
+config.json
+!examples/config.json
+
+# Local planning notes (Context Ledger) and generated graphs
+.ctx/
+graphify-out/
+.claude/settings.local.json
+.claude/worktrees/
+
+# OS / editor junk
+.DS_Store
+._*
+.idea/
+.vscode/
+*.swp
+*~

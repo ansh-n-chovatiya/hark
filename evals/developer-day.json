@@ -1,0 +1,625 @@
+{
+ "desk": [
+  {
+   "kind": "app",
+   "title": "Warp",
+   "detail": "Open",
+   "running": true,
+   "front": true
+  },
+  {
+   "kind": "app",
+   "title": "Google Chrome",
+   "detail": "Open",
+   "running": true
+  },
+  {
+   "kind": "app",
+   "title": "Code",
+   "detail": "Open",
+   "running": true
+  },
+  {
+   "kind": "app",
+   "title": "Microsoft Teams",
+   "detail": "Open",
+   "running": true
+  },
+  {
+   "kind": "app",
+   "title": "Slack",
+   "detail": "Open",
+   "running": true
+  },
+  {
+   "kind": "app",
+   "title": "Linear",
+   "detail": "Open",
+   "running": true
+  },
+  {
+   "kind": "app",
+   "title": "Notes",
+   "detail": "Open",
+   "running": true
+  },
+  {
+   "kind": "app",
+   "title": "QuickTime Player",
+   "detail": "Open",
+   "running": true
+  },
+  {
+   "kind": "app",
+   "title": "Safari",
+   "detail": "Not open",
+   "running": false
+  },
+  {
+   "kind": "app",
+   "title": "TextEdit",
+   "detail": "Not open",
+   "running": false
+  },
+  {
+   "kind": "app",
+   "title": "Calculator",
+   "detail": "Not open",
+   "running": false
+  },
+  {
+   "kind": "app",
+   "title": "Codex",
+   "detail": "Not open",
+   "running": false
+  },
+  {
+   "kind": "app",
+   "title": "Claude Code URL Handler",
+   "detail": "Not open",
+   "running": false
+  },
+  {
+   "kind": "app",
+   "title": "Preview",
+   "detail": "Not open",
+   "running": false
+  },
+  {
+   "kind": "window",
+   "title": "relay.py \u2014 Shop-backend",
+   "detail": "Code",
+   "owner": "Code"
+  },
+  {
+   "kind": "window",
+   "title": "App.tsx \u2014 shop-frontend",
+   "detail": "Code",
+   "owner": "Code"
+  },
+  {
+   "kind": "window",
+   "title": "Welcome \u2014 worker",
+   "detail": "Code",
+   "owner": "Code"
+  },
+  {
+   "kind": "window",
+   "title": "claude",
+   "detail": "Warp",
+   "owner": "Warp",
+   "front": true
+  },
+  {
+   "kind": "window",
+   "title": "Acme Shop - Google Chrome",
+   "detail": "Google Chrome",
+   "owner": "Google Chrome"
+  },
+  {
+   "kind": "tab",
+   "title": "Acme Shop",
+   "detail": "localhost",
+   "owner": "Google Chrome"
+  },
+  {
+   "kind": "tab",
+   "title": "Acme Shop",
+   "detail": "localhost",
+   "owner": "Google Chrome"
+  },
+  {
+   "kind": "tab",
+   "title": "Logs \u00b7 shop-backend \u00b7 Web Service - Render",
+   "detail": "dashboard.render.com",
+   "owner": "Google Chrome"
+  },
+  {
+   "kind": "tab",
+   "title": "Events \u00b7 pricing-engine - Render",
+   "detail": "dashboard.render.com",
+   "owner": "Google Chrome"
+  },
+  {
+   "kind": "tab",
+   "title": "ENG-29 Checkout redesign | Linear",
+   "detail": "linear.app",
+   "owner": "Google Chrome",
+   "front": true
+  },
+  {
+   "kind": "tab",
+   "title": "Screen Recorder - Record your screen online",
+   "detail": "screenrecorder.example",
+   "owner": "Google Chrome"
+  },
+  {
+   "kind": "tab",
+   "title": "API keys | Google AI Studio",
+   "detail": "aistudio.google.com",
+   "owner": "Google Chrome"
+  },
+  {
+   "kind": "tab",
+   "title": "Pull requests \u00b7 acme/Shop-backend \u00b7 GitHub",
+   "detail": "github.com",
+   "owner": "Google Chrome"
+  },
+  {
+   "kind": "file",
+   "title": "Shop-backend",
+   "detail": "Projects",
+   "folder": true
+  },
+  {
+   "kind": "file",
+   "title": "shop-frontend",
+   "detail": "Projects",
+   "folder": true
+  },
+  {
+   "kind": "file",
+   "title": "pricing-engine",
+   "detail": "Projects",
+   "folder": true
+  },
+  {
+   "kind": "file",
+   "title": "checkout-plan",
+   "detail": "Projects",
+   "folder": true
+  },
+  {
+   "kind": "file",
+   "title": "checkout-plan",
+   "detail": "Projects/shop-frontend/local",
+   "folder": true
+  },
+  {
+   "kind": "file",
+   "title": "phase-6-recording.md",
+   "detail": "Projects/checkout-plan",
+   "folder": false
+  },
+  {
+   "kind": "file",
+   "title": "standup.md",
+   "detail": "Projects",
+   "folder": false
+  },
+  {
+   "kind": "file",
+   "title": "candidate_directory.py",
+   "detail": "Projects/Shop-backend/src",
+   "folder": false
+  },
+  {
+   "kind": "file",
+   "title": "migrate_drop_access_codes.py",
+   "detail": "Projects/Shop-backend",
+   "folder": false
+  }
+ ],
+ "folders": [
+  "~/Projects"
+ ],
+ "cases": [
+  {
+   "say": "Switch to Chrome",
+   "expect": "done",
+   "mentions": [
+    "Google Chrome"
+   ]
+  },
+  {
+   "say": "Open Chrome",
+   "expect": "done",
+   "mentions": [
+    "Google Chrome"
+   ]
+  },
+  {
+   "say": "Go to Warp",
+   "expect": "done",
+   "mentions": [
+    "Warp"
+   ]
+  },
+  {
+   "say": "Go to VARP.",
+   "expect": "done",
+   "mentions": [
+    "Warp"
+   ]
+  },
+  {
+   "say": "open Safari",
+   "expect": "done",
+   "mentions": [
+    "Safari"
+   ]
+  },
+  {
+   "say": "hide Chrome",
+   "expect": "done",
+   "mentions": [
+    "Google Chrome"
+   ]
+  },
+  {
+   "say": "Quit Teams.",
+   "expect": "confirm",
+   "mentions": [
+    "Microsoft Teams"
+   ]
+  },
+  {
+   "say": "Quit VS Code",
+   "expect": "confirm",
+   "mentions": [
+    "Code"
+   ],
+   "avoids": [
+    "Codex",
+    "URL Handler"
+   ]
+  },
+  {
+   "say": "quit Slack and Linear",
+   "expect": "confirm",
+   "mentions": [
+    "Slack",
+    "Linear"
+   ],
+   "avoids": [
+    "Teams"
+   ]
+  },
+  {
+   "say": "Open VS Code with project directory",
+   "expect": "done",
+   "mentions": [
+    "Projects"
+   ]
+  },
+  {
+   "say": "open the projects folder",
+   "expect": "done",
+   "mentions": [
+    "Projects"
+   ]
+  },
+  {
+   "say": "open the checkout plan folder",
+   "expect": "done",
+   "mentions": [
+    "checkout-plan"
+   ]
+  },
+  {
+   "say": "open the frontend project",
+   "expect": "done",
+   "mentions": [
+    "shop-frontend"
+   ]
+  },
+  {
+   "say": "open Shop backend in VS Code",
+   "expect": "done",
+   "mentions": [
+    "Shop-backend"
+   ]
+  },
+  {
+   "say": "Open the VS Code window for the shop backend",
+   "expect": "done",
+   "mentions": [
+    "Shop-backend"
+   ]
+  },
+  {
+   "say": "Open the Chrome tab which has a screen recorder open",
+   "expect": "done",
+   "mentions": [
+    "Screen Recorder"
+   ]
+  },
+  {
+   "say": "open the render logs tab",
+   "expect": "done",
+   "mentions": [
+    "Logs"
+   ]
+  },
+  {
+   "say": "switch to the linear ticket",
+   "expect": "done",
+   "mentions": [
+    "ENG-29"
+   ]
+  },
+  {
+   "say": "open the pull requests tab",
+   "expect": "done",
+   "mentions": [
+    "Pull requests"
+   ]
+  },
+  {
+   "say": "close the screen recorder tab",
+   "expect": "confirm",
+   "mentions": [
+    "Screen Recorder"
+   ]
+  },
+  {
+   "say": "Open Chrome in a new tab",
+   "expect": "done",
+   "mentions": [
+    "new tab"
+   ]
+  },
+  {
+   "say": "open a chrome tab",
+   "expect": "done",
+   "mentions": [
+    "new tab"
+   ]
+  },
+  {
+   "say": "open browser with empty tab",
+   "expect": "done",
+   "mentions": [
+    "new tab"
+   ]
+  },
+  {
+   "say": "open youtube in a new tab",
+   "expect": "done",
+   "mentions": [
+    "youtube"
+   ]
+  },
+  {
+   "say": "open the standup file",
+   "expect": "done",
+   "mentions": [
+    "standup.md"
+   ]
+  },
+  {
+   "say": "open phase six recording file",
+   "expect": "done",
+   "mentions": [
+    "phase-6-recording.md"
+   ]
+  },
+  {
+   "say": "open the standup file in TextEdit",
+   "expect": "done",
+   "mentions": [
+    "standup.md",
+    "TextEdit"
+   ]
+  },
+  {
+   "say": "Open Slack and Linear",
+   "expect": "done",
+   "mentions": [
+    "Slack",
+    "Linear"
+   ]
+  },
+  {
+   "say": "open Microsoft Teams and Safari",
+   "expect": "done",
+   "mentions": [
+    "Microsoft Teams",
+    "Safari"
+   ]
+  },
+  {
+   "say": "hide everything except Warp",
+   "expect": "done",
+   "mentions": [
+    "Google Chrome",
+    "Slack"
+   ],
+   "avoids": [
+    "Warp"
+   ]
+  },
+  {
+   "say": "Close all the applications and running processes except Warp, Chrome and VS Code",
+   "expect": "confirm",
+   "mentions": [
+    "Microsoft Teams",
+    "Slack",
+    "Linear"
+   ],
+   "avoids": [
+    "Warp",
+    "Chrome",
+    "Code"
+   ]
+  },
+  {
+   "say": "Close all VS Code windows and open the projects folder in VS Code",
+   "expect": "confirm",
+   "mentions": [
+    "Projects"
+   ],
+   "avoids": [
+    "Chrome",
+    "Warp"
+   ]
+  },
+  {
+   "say": "Close all VS Code instances",
+   "expect": "confirm",
+   "avoids": [
+    "Chrome",
+    "Warp",
+    "Slack"
+   ]
+  },
+  {
+   "say": "open the projects folder in VS Code and switch to dark mode",
+   "expect": "done",
+   "mentions": [
+    "Projects",
+    "dark"
+   ]
+  },
+  {
+   "say": "open a new window in Chrome",
+   "expect": "done",
+   "mentions": [
+    "New Window"
+   ]
+  },
+  {
+   "say": "mute the sound",
+   "expect": "done",
+   "mentions": [
+    "mute"
+   ]
+  },
+  {
+   "say": "set the volume to 30 percent",
+   "expect": "done",
+   "mentions": [
+    "30"
+   ]
+  },
+  {
+   "say": "switch to dark mode",
+   "expect": "done",
+   "mentions": [
+    "dark"
+   ]
+  },
+  {
+   "say": "lock the screen",
+   "expect": "done",
+   "mentions": [
+    "lock"
+   ]
+  },
+  {
+   "say": "Empty the recycle bin.",
+   "expect": "refuse"
+  },
+  {
+   "say": "delete the standup file",
+   "expect": "refuse"
+  },
+  {
+   "say": "undo that",
+   "expect": "nothing"
+  },
+  {
+   "say": "close this tab",
+   "expect": "confirm",
+   "mentions": [
+    "ENG-29"
+   ],
+   "avoids": [
+    "Screen Recorder",
+    "Pull requests"
+   ]
+  },
+  {
+   "say": "close this window",
+   "expect": "confirm",
+   "mentions": [
+    "claude"
+   ],
+   "avoids": [
+    "Shop-backend"
+   ]
+  },
+  {
+   "say": "hide this app",
+   "expect": "done",
+   "mentions": [
+    "Warp"
+   ],
+   "avoids": [
+    "Chrome"
+   ]
+  },
+  {
+   "say": "save this setup as morning",
+   "expect": "done",
+   "mentions": [
+    "morning",
+    "apps"
+   ]
+  },
+  {
+   "say": "open the task board",
+   "expect": "done",
+   "mentions": [
+    "task board"
+   ]
+  },
+  {
+   "say": "open the backend logs",
+   "expect": "done",
+   "mentions": [
+    "backend logs"
+   ],
+   "avoids": [
+    "Render"
+   ]
+  },
+  {
+   "say": "put VS Code on the left and Chrome on the right",
+   "expect": "done",
+   "mentions": [
+    "left half",
+    "right half"
+   ]
+  },
+  {
+   "say": "make this window full size",
+   "expect": "done",
+   "mentions": [
+    "full size"
+   ]
+  },
+  {
+   "say": "copy the address of this tab",
+   "expect": "done",
+   "mentions": [
+    "address",
+    "ENG-29"
+   ]
+  }
+ ],
+ "links": {
+  "task board": "https://tracker.example.com/board",
+  "backend logs": "https://dashboard.example.com/logs/shop-backend"
+ }
+}

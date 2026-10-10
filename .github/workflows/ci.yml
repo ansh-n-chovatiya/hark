@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-test:
+    # Hark targets macOS 26 on Apple silicon.
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: swift build
+      - name: Test
+        run: swift test
+      - name: Evaluation set (rules only, no model)
+        run: swift run hark --eval evals/developer-day.json --local
+        continue-on-error: true
+
+  hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Nothing personal in the tree
+        run: |
+          if grep -rIn --exclude-dir=.git -E '/Users/[a-z]|sk-[A-Za-z0-9]{20,}' . ; then
+            echo "Found a home path or key-like string"; exit 1
+          fi
+      - name: Scripts are valid zsh
+        run: |
+          sudo apt-get install -y zsh >/dev/null
+          for f in scripts/*.sh; do zsh -n "$f"; done
