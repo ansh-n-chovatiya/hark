@@ -29,7 +29,8 @@ final class MicrophoneInput: @unchecked Sendable {
     static func requestAccess() async throws {
         switch Permissions.status(.microphone) {
         case .granted: return
-        case .notAsked:
+        // The microphone always has an answer; an unknown one is treated as not yet asked.
+        case .notAsked, .unknown:
             guard await AVCaptureDevice.requestAccess(for: .audio) else { throw SpeechError.microphoneDenied }
         case .denied: throw SpeechError.microphoneDenied
         }

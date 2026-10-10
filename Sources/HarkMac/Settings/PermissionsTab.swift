@@ -47,7 +47,7 @@ private struct PermissionRow: View {
             }
             Spacer(minLength: 12)
             statusLabel
-            if status != nil && status != .granted {
+            if status != nil && status != .granted && status != .unknown {
                 Button("Open settings", action: openSettings)
                     .accessibilityLabel("Open settings for \(name)")
             }
@@ -59,6 +59,7 @@ private struct PermissionRow: View {
         switch status {
         case .granted: StatusLabel(text: "Allowed", symbol: "checkmark.circle.fill", tint: .green)
         case .denied, .notAsked: StatusLabel(text: "Needed", symbol: "exclamationmark.triangle.fill", tint: .orange)
+        case .unknown: StatusLabel(text: "Open Chrome to check", symbol: "questionmark.circle", tint: .secondary)
         case nil: StatusLabel(text: "Checking", symbol: "ellipsis.circle", tint: .secondary)
         }
     }

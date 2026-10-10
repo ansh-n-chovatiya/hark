@@ -223,6 +223,24 @@ enum ModelLookup: Equatable {
             : "Added \(found.projects.count) project\(found.projects.count == 1 ? "" : "s")."
     }
 
+    /// Turns one model on or off without changing the others or their order.
+    func setModel(_ key: String, on: Bool) {
+        update { config in
+            config.modelsOff.removeAll { $0 == key }
+            if !on { config.modelsOff.append(key) }
+        }
+    }
+
+    /// Moves a model one place earlier (-1) or later (+1) in the order they are tried.
+    func moveModel(_ key: String, by step: Int) {
+        update { config in
+            var order = ModelSetup.entries(for: config).map(\.key)
+            guard let from = order.firstIndex(of: key), order.indices.contains(from + step) else { return }
+            order.swapAt(from, from + step)
+            config.modelOrder = order
+        }
+    }
+
     func setReviewsFailures(_ on: Bool) {
         update { $0.reviewsFailures = on }
     }

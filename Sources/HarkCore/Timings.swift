@@ -16,6 +16,8 @@ public struct Timings: Codable, Sendable, Equatable {
     public var tools: [String]?
     /// What Hark did or said in reply, as shown to the user. Never holds clipboard text.
     public var summary: String?
+    /// Which model answered, when one was asked: "Online model", "Claude Code", "Model on this Mac".
+    public var model: String?
 
     public init(
         at: Date,
@@ -29,7 +31,8 @@ public struct Timings: Codable, Sendable, Equatable {
         totalMs: Double,
         modelMs: Double? = nil,
         tools: [String]? = nil,
-        summary: String? = nil
+        summary: String? = nil,
+        model: String? = nil
     ) {
         self.at = at
         self.raw = raw
@@ -43,6 +46,7 @@ public struct Timings: Codable, Sendable, Equatable {
         self.modelMs = modelMs
         self.tools = tools
         self.summary = summary
+        self.model = model
     }
 }
 

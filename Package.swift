@@ -16,5 +16,6 @@ let package = Package(
             dependencies: ["HarkCore", .product(name: "FluidAudio", package: "FluidAudio")]),
         .executableTarget(name: "hark", dependencies: ["HarkCore", "HarkMac"], path: "Sources/Hark"),
         .testTarget(name: "HarkCoreTests", dependencies: ["HarkCore"]),
+        .testTarget(name: "HarkMacTests", dependencies: ["HarkMac", "HarkCore"]),
     ]
 )

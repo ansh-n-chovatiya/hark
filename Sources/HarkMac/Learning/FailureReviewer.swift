@@ -33,19 +33,10 @@ public enum FailureReviewer {
         let list = String(decoding: try JSONSerialization.data(withJSONObject: phrases), as: UTF8.self)
         let messages: [ChatMessage] = [.system(instructions), .user(list)]
 
-        var reply: ChatReply?
-        var failures: [String] = []
-        for model in models(for: config) {
-            do {
-                reply = try await model.reply(to: messages, tools: [])
-                break
-            } catch {
-                failures.append(error.localizedDescription)
-            }
+        guard let chain = ModelSetup.make(for: config).chain else {
+            throw ReviewError(message: "No model is set up.")
         }
-        guard let reply else {
-            throw ReviewError(message: failures.isEmpty ? "No model is set up." : failures.joined(separator: " Then: "))
-        }
+        let reply = try await chain.reply(to: messages, tools: [])
         return ReviewParser.parse(reply.text ?? "", asked: phrases).map { pair in
             Suggestion(
                 id: "ai:\(pair.said)>\(pair.meant)", kind: .name,
@@ -53,20 +44,6 @@ public enum FailureReviewer {
                 detail: "Hark could not do this, and a model thinks this is what you meant.",
                 said: pair.said, meant: pair.meant)
         }
-    }
-
-    /// The model the user set up, then the one on this Mac.
-    private static func models(for config: Config) -> [any ChatModel] {
-        var found: [any ChatModel] = []
-        if config.useModel,
-           let main = OpenAIChatModel(url: config.modelURL, models: config.model, key: config.modelKey, timeout: timeout) {
-            found.append(main)
-        }
-        if !config.fallbackModel.isEmpty,
-           let local = OpenAIChatModel(url: config.fallbackModelURL, models: config.fallbackModel, key: "", timeout: timeout) {
-            found.append(local)
-        }
-        return found
     }
 }
 

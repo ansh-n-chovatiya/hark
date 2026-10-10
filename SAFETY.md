@@ -113,6 +113,17 @@ src, Sites, Workspace) and list the folder names it finds, if you have not set a
 add an action, and a learned routine can only open things. "Delete what Hark has noticed" in the
 Learning tab empties the file.
 
+## AI tools already on your Mac
+Hark looks for an AI command-line tool you already use (Claude Code) and uses it as one of its models
+when you have not turned that off (Settings, Understanding). The models are tried in order: the online
+model you set up, then those tools, then the model on this Mac. One that fails, for example by running
+out of quota, is not asked again for a few minutes. The tool is started with all of its own tools,
+settings and extensions off and nothing saved, in an empty folder, so it can only answer in words. Its
+answer is read as a list of calls to Hark's own tools, anything else is dropped, and each call goes
+through the same checks as any model's. What it is sent is the same as for an online model: your
+command, and the names of open apps, windows, tabs and files. Never the clipboard. History says which
+model answered each command.
+
 ## What the model reviews
 While learning is on, and unless you turn off "Let the AI model review commands that failed" in
 Settings, Learning, Hark asks the model you set up (the hosted one if you added a key, else the one on

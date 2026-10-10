@@ -31,6 +31,13 @@ extension SettingsWindow {
         try renderMenuHeaders(to: folder, appearances: appearances)
         try renderKeyList(to: folder, appearances: appearances)
         try renderDictationPills(to: folder, appearances: appearances)
+        // The Understanding tab at full height, since the window scrolls and the preview does not.
+        for (name, appearance) in appearances {
+            let host = NSHostingController(rootView: UnderstandingTab(model: SettingsModel.sample()).frame(width: 640, height: 1250))
+            let window = NSWindow(contentViewController: host)
+            window.styleMask = [.borderless]
+            try render(window, appearance: appearance).write(to: folder.appending(path: "model-tall-\(name).png"))
+        }
     }
 
     /// The dictation pill in each of its states.

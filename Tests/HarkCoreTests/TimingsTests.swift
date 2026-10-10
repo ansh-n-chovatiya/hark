@@ -37,3 +37,18 @@ private func entry(verb: String, totalMs: Double) -> Timings {
     #expect(median([5, 1, 3]) == 3)
     #expect(median([]) == nil)
 }
+
+@Suite struct TimingsModelTests {
+    @Test func theModelThatAnsweredSurvivesSavingAndOlderRecordsStillLoad() throws {
+        let entry = Timings(
+            at: Date(timeIntervalSince1970: 1_790_000_000), raw: "open slack", verb: nil, outcome: "done", transcribeMs: 0,
+            parseMs: 0, matchMs: 0, actMs: 0, totalMs: 0, model: "Claude Code")
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        #expect(try decoder.decode(Timings.self, from: encoder.encode(entry)).model == "Claude Code")
+        let old = #"{"at":"2026-10-10T10:00:00Z","raw":"x","outcome":"done","transcribeMs":0,"parseMs":0,"matchMs":0,"actMs":0,"totalMs":0}"#
+        #expect(try decoder.decode(Timings.self, from: Data(old.utf8)).model == nil)
+    }
+}

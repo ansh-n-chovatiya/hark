@@ -94,6 +94,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         config = loadConfig()
         startLearning()
         install(config)
+        // Finding AI tools already on the Mac asks a login shell, so it is done away from the main thread;
+        // the models are set up again once it is known what was found.
+        Task.detached { [weak self] in
+            guard !ModelCLIs.discover().isEmpty else { return }
+            await MainActor.run { if let self { self.install(self.config) } }
+        }
         commandBar.onSubmit = { [weak self] text in self?.runTyped(text) }
         menuBar?.onTypeCommand = { [weak self] in self?.commandBar.show() }
         menuBar?.onSettings = { [weak self] in self?.showSettings() }
@@ -674,6 +680,33 @@ func runCommandLine(_ flag: String, _ values: [String]) async -> Int32 {
         let worked = await SuggestionProof.shared.works(suggestion, config: config)
         print(worked ? "works: Hark would act on \"\(values[0])\" with that name" : "does not work")
         return worked ? 0 : 1
+    case "--models":
+        // Lists the models in the order they are tried and times a tiny question to each on its own.
+        ModelCLIs.discover()
+        let config = (try? Config.load(from: Paths.config)) ?? Config()
+        guard let chain = ModelSetup.make(for: config).chain else {
+            print("No model is set up.")
+            return 1
+        }
+        let clock = ContinuousClock()
+        for choice in chain.choices {
+            let started = clock.now
+            do {
+                _ = try await choice.model.reply(to: [.user("Reply with the single word ok.")], tools: [])
+                let took = clock.now - started
+                print("\(choice.label)\(choice.isStandIn ? " (small stand-in)" : ""): answered in \(took)")
+            } catch {
+                let took = clock.now - started
+                print("\(choice.label): failed after \(took): \(error.localizedDescription.prefix(140))")
+            }
+        }
+        return 0
+    case "--permissions":
+        for permission in Permission.allCases { print("\(permission.rawValue): \(Permissions.status(permission).rawValue)") }
+        let chrome = NSAppleEventDescriptor(bundleIdentifier: "com.google.Chrome")
+        let raw = AEDeterminePermissionToAutomateTarget(chrome.aeDesc, typeWildCard, typeWildCard, false)
+        print("chrome running: \(!NSRunningApplication.runningApplications(withBundleIdentifier: "com.google.Chrome").isEmpty), raw code: \(raw)")
+        return 0
     case "--show-dictation":
         // Puts the dictation pill on screen for a few seconds, to see it where the real one appears.
         let seconds = number(after: "--seconds", in: values) ?? 6
@@ -789,6 +822,7 @@ func evaluate(
 
 /// `answerYes` answers a yes-or-no question as the user pressing 1 would.
 func say(_ text: String, dryRun: Bool, answerYes: Bool) async -> Int32 {
+    ModelCLIs.discover()
     let config: Config
     do {
         config = try Config.load(from: Paths.config)

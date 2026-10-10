@@ -46,6 +46,14 @@ public struct Config: Codable, Sendable, Equatable {
     /// Lets the model Hark already uses read the commands that failed, to propose names for them. Only
     /// the failed phrases are sent, and only when `learns` is on.
     public var reviewsFailures: Bool
+    /// "auto" uses AI command-line tools already on the Mac (Claude Code) when the other models fail or are
+    /// missing; "off" never does.
+    public var cli: String
+    /// The order models are tried in, as keys: "online", "cli:claude", "local". Keys left out go last, in the
+    /// usual order. Empty means the usual order.
+    public var modelOrder: [String]
+    /// Keys of models the user has turned off.
+    public var modelsOff: [String]
     public var searchFolders: [String]
     public var repos: [String]
     public var aliases: [String: String]
@@ -70,6 +78,9 @@ public struct Config: Codable, Sendable, Equatable {
         dictationKey: String = "",
         learns: Bool = true,
         reviewsFailures: Bool = true,
+        cli: String = "auto",
+        modelOrder: [String] = [],
+        modelsOff: [String] = [],
         searchFolders: [String] = [],
         repos: [String] = [],
         aliases: [String: String] = [:],
@@ -88,6 +99,9 @@ public struct Config: Codable, Sendable, Equatable {
         self.dictationKey = dictationKey
         self.learns = learns
         self.reviewsFailures = reviewsFailures
+        self.cli = cli
+        self.modelOrder = modelOrder
+        self.modelsOff = modelsOff
         self.searchFolders = searchFolders
         self.repos = repos
         self.aliases = aliases
@@ -111,6 +125,9 @@ public struct Config: Codable, Sendable, Equatable {
         dictationKey = try values.decodeIfPresent(String.self, forKey: .dictationKey) ?? defaults.dictationKey
         learns = try values.decodeIfPresent(Bool.self, forKey: .learns) ?? defaults.learns
         reviewsFailures = try values.decodeIfPresent(Bool.self, forKey: .reviewsFailures) ?? defaults.reviewsFailures
+        cli = try values.decodeIfPresent(String.self, forKey: .cli) ?? defaults.cli
+        modelOrder = try values.decodeIfPresent([String].self, forKey: .modelOrder) ?? defaults.modelOrder
+        modelsOff = try values.decodeIfPresent([String].self, forKey: .modelsOff) ?? defaults.modelsOff
         searchFolders = try values.decodeIfPresent([String].self, forKey: .searchFolders) ?? defaults.searchFolders
         repos = try values.decodeIfPresent([String].self, forKey: .repos) ?? defaults.repos
         aliases = try values.decodeIfPresent([String: String].self, forKey: .aliases) ?? defaults.aliases

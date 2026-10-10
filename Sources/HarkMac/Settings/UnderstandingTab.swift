@@ -12,6 +12,7 @@ struct UnderstandingTab: View {
             if model.config.useModel {
                 onlineModel
                 modelOnThisMac
+                aiTools
             }
         }
         .formStyle(.grouped)
@@ -112,6 +113,36 @@ struct UnderstandingTab: View {
         )
     }
 
+    /// The order models are tried in, which are turned on, and which is resting after a failure.
+    private var aiTools: some View {
+        Section {
+            TimelineView(.periodic(from: .now, by: 5)) { _ in
+                let entries = ModelSetup.entries(for: model.config)
+                VStack(alignment: .leading, spacing: 10) {
+                    ForEach(Array(entries.enumerated()), id: \.element.key) { index, entry in
+                        ChainRow(
+                            number: index + 1, label: entry.choice.label, isOn: entry.isOn,
+                            down: ModelHealth.shared.status(of: entry.choice.id),
+                            canMoveUp: index > 0, canMoveDown: index < entries.count - 1,
+                            setOn: { model.setModel(entry.key, on: $0) },
+                            move: { model.moveModel(entry.key, by: $0) })
+                    }
+                    if entries.isEmpty { Text("No model is set up.").foregroundStyle(.secondary) }
+                }
+                .padding(.vertical, 2)
+            }
+        } header: {
+            Text("Order Hark tries")
+        } footer: {
+            HelperText(
+                text: (ModelCLIs.found.isEmpty ? "No AI command-line tool was found; Hark looks for Claude Code. " : "")
+                    + "The first one that works answers. One that fails, such as for being out of quota, is skipped for a "
+                    + "while. Your command words and the names of open apps go to the service behind any online model or tool. "
+                    + "Turn one off to keep it from being used.")
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
     private var modelOnThisMac: some View {
         Section {
             addressField(.onThisMac)
@@ -138,5 +169,47 @@ struct UnderstandingTab: View {
 
     private var useModel: Binding<Bool> {
         Binding(get: { model.config.useModel }, set: { on in model.update { $0.useModel = on } })
+    }
+}
+
+private struct ChainRow: View {
+    let number: Int
+    let label: String
+    let isOn: Bool
+    let down: ModelHealth.Down?
+    let canMoveUp: Bool
+    let canMoveDown: Bool
+    let setOn: (Bool) -> Void
+    let move: (Int) -> Void
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Text("\(number)").foregroundStyle(.secondary).frame(width: 18)
+            Text(label).foregroundStyle(isOn ? .primary : .secondary)
+            Spacer(minLength: 8)
+            if !isOn {
+                StatusLabel(text: "Off", symbol: "minus.circle", tint: .secondary).font(SettingsLayout.small)
+            } else if let down {
+                StatusLabel(
+                    text: "\(down.reason), resting until \(down.until.formatted(date: .omitted, time: .shortened))",
+                    symbol: "pause.circle.fill", tint: .orange)
+                    .font(SettingsLayout.small)
+            } else {
+                StatusLabel(text: "Ready", symbol: "checkmark.circle.fill", tint: .green).font(SettingsLayout.small)
+            }
+            Toggle(label, isOn: Binding(get: { isOn }, set: setOn))
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .controlSize(.small)
+            HStack(spacing: 2) {
+                Button { move(-1) } label: { Image(systemName: "chevron.up") }
+                    .disabled(!canMoveUp)
+                    .accessibilityLabel("Try \(label) earlier")
+                Button { move(1) } label: { Image(systemName: "chevron.down") }
+                    .disabled(!canMoveDown)
+                    .accessibilityLabel("Try \(label) later")
+            }
+            .buttonStyle(.borderless)
+        }
     }
 }

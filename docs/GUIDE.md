@@ -98,6 +98,13 @@ posting, paying or leaving asks first, and anything about deleting is refused. H
 can see depends on the app: Mac apps show everything, while apps built on web technology (Teams, Slack,
 VS Code) show what they choose to, and some show little.
 
+**Backup models.** Hark does not stop when one model fails. It tries, in order, the online model you set
+up, then an AI tool already on your Mac (Claude Code is found automatically), then the model on this
+Mac. A model that is out of quota rests for a few minutes instead of making every command wait, and
+Settings, Understanding, "Order Hark tries" shows which are ready and which are resting. Each command in
+History says which model answered. An AI tool on the Mac starts a program for every question, so a
+command that needs it takes several seconds.
+
 **Learning.** Hark sets itself up and offers shortcuts so you do not have to fill in the Folders, Names,
 Web pages and Routines screens by hand. On the first run it looks for your project folders. After
 that it notices which apps and websites you open together, which sites you visit on many days, and

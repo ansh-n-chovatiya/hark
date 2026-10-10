@@ -119,8 +119,9 @@ struct HistoryRow: View {
     }
 
     private var summary: String {
-        guard let summary = entry.summary, !summary.isEmpty else { return "" }
-        return " · " + summary
+        let said = entry.summary.flatMap { $0.isEmpty ? nil : " · " + $0 } ?? ""
+        // Which model answered, so a backup doing the work is never invisible.
+        return said + (entry.model.map { " · via \($0)" } ?? "")
     }
 }
 

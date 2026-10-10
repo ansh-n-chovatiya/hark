@@ -23,7 +23,10 @@ public actor Pipeline {
     private let log: TimingLog
     private let model: (any ChatModel)?
     private let localModel: OpenAIChatModel?
-    private let hedged: FallbackChatModel?
+    private let chain: ModelChain?
+    /// How long a model may take. An AI tool on the Mac starts a program for each question, which takes
+    /// several seconds before the model even begins, so it is given longer.
+    private let agentRunLimit: Duration
     private let dryRun: Bool
     private let knownFolders: [Item]
     private let ownNames: [String: String]
@@ -131,20 +134,11 @@ public actor Pipeline {
                 payload: ["path": path, "folder": "yes"])
         }
 
-        let main = config.useModel
-            ? OpenAIChatModel(url: config.modelURL, models: config.model, key: config.modelKey) : nil
-        let local = config.fallbackModel.isEmpty
-            ? nil : OpenAIChatModel(url: config.fallbackModelURL, models: config.fallbackModel, key: "")
-        if let main, !main.isLocal, let local {
-            let both = FallbackChatModel(primary: main, fallback: local, headStart: Self.hostedHeadStart)
-            model = both
-            hedged = both
-            localModel = local
-        } else {
-            model = main
-            hedged = nil
-            localModel = main?.isLocal == true ? main : nil
-        }
+        let setup = ModelSetup.make(for: config, headStart: Self.hostedHeadStart)
+        model = setup.chain
+        chain = setup.chain
+        localModel = setup.local
+        agentRunLimit = setup.chain?.choices.contains { $0.id.hasPrefix("cli:") } == true ? .seconds(30) : Self.longestAgentRun
     }
 
     /// The folders the user listed, their projects, and the folders directly inside the listed
@@ -270,6 +264,10 @@ public actor Pipeline {
         if let verb = parser.parse(transcript)?.verb, verb != .open { return nil }
         // "Open Slack and Linear": the second part is another app, which the usual path handles.
         guard await !namesAnApp(request.action) else { return nil }
+        // ... and "open Slack and Linear and Notes": the first thing after "and" is another app.
+        if let first = request.action.components(separatedBy: " and ").first, first != request.action,
+           await namesAnApp(first) { return nil }
+        if await namesAnApp(request.action.components(separatedBy: " ").first ?? "") { return nil }
         let running = await MainActor.run { try? MenuToolApps.running(named: request.app) }
         if dryRun, running == nil {
             return .done("Would: Open \(request.app), then choose \u{201C}\(request.action)\u{201D} in its menus")
@@ -707,11 +705,12 @@ public actor Pipeline {
         lastConversation = await agent.conversation
         timings.modelMs = (timings.modelMs ?? 0) + turns.reduce(0) { $0 + $1.modelMs }
         timings.tools = (timings.tools ?? []) + turns.flatMap(\.tools)
+        if let label = chain?.lastLabel, !label.isEmpty { timings.model = label }
         modelLastUsed = clock.now
 
         // The stand-in model misreads groups and exceptions too often to be trusted with a plan
         // that closes or quits things: on the evaluation set it wanted to close everything.
-        if case .confirm = outcome, hedged?.lastSource == "fallback" {
+        if case .confirm = outcome, chain?.lastWasStandIn == true {
             return .declined("The model was too slow to plan that safely. Please say it again.")
         }
         switch outcome {
@@ -726,10 +725,11 @@ public actor Pipeline {
     }
 
     private func withinTimeLimit(_ run: @escaping @Sendable () async -> AgentOutcome) async -> AgentOutcome {
-        await withTaskGroup(of: AgentOutcome?.self) { group in
+        let limit = agentRunLimit
+        return await withTaskGroup(of: AgentOutcome?.self) { group in
             group.addTask { await run() }
             group.addTask {
-                try? await Task.sleep(for: Self.longestAgentRun)
+                try? await Task.sleep(for: limit)
                 return nil
             }
             let first = await group.next() ?? nil
