@@ -37,12 +37,14 @@ public enum FailureReviewer {
             throw ReviewError(message: "No model is set up.")
         }
         let reply = try await chain.reply(to: messages, tools: [])
-        return ReviewParser.parse(reply.text ?? "", asked: phrases).map { pair in
-            Suggestion(
-                id: "name:\(pair.said)>\(pair.meant)", kind: .name,
-                title: "When you say \u{201C}\(pair.said)\u{201D}, hear \u{201C}\(pair.meant)\u{201D}",
+        return ReviewParser.parse(reply.text ?? "", asked: phrases).compactMap { pair -> Suggestion? in
+            // Only the thing named is kept, as with a name learned from history.
+            guard let name = Learner.alias(said: pair.said, meant: pair.meant) else { return nil }
+            return Suggestion(
+                id: "name:\(name.said)>\(name.meant)", kind: .name,
+                title: "When you say \u{201C}\(name.said)\u{201D}, hear \u{201C}\(name.meant)\u{201D}",
                 detail: "Hark could not do this, and a model thinks this is what you meant.",
-                said: pair.said, meant: pair.meant)
+                said: name.said, meant: name.meant, example: pair.said)
         }
     }
 }

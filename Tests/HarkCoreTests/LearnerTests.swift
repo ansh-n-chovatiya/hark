@@ -33,8 +33,9 @@ import Testing
         ]
         let found = Learner.names(history: history, config: Config())
         #expect(found.count == 1)
-        #expect(found[0].said == "open slak")
-        #expect(found[0].meant == "open slack")
+        #expect(found[0].said == "slak")
+        #expect(found[0].meant == "slack")
+        #expect(found[0].example == "open slak")
     }
 
     @Test func aPairSeenOnceThatIsNotVeryAlikeWaitsForASecondSighting() {
@@ -54,7 +55,7 @@ import Testing
 
     @Test func aNameTheUserAlreadyHasIsNotOfferedAgain() {
         let history = [entry("Open Slak", "notUnderstood", at: 0), entry("Open Slack", "done", at: 20)]
-        let config = Config(aliases: ["open slak": "open slack"])
+        let config = Config(aliases: ["slak": "slack"])
         #expect(Learner.names(history: history, config: config).isEmpty)
     }
 
@@ -147,5 +148,21 @@ import Testing
     @Test func similarityIsOneForSameAndLowForDifferent() {
         #expect(Learner.similarity("open slack", "open slack") == 1)
         #expect(Learner.similarity("abc", "xyz") == 0)
+    }
+
+    // MARK: What a pair teaches
+
+    @Test func aNameKeepsOnlyTheThingNamed() {
+        #expect(Learner.alias(said: "open slak", meant: "open slack")?.said == "slak")
+        #expect(Learner.alias(said: "switch to the linier", meant: "switch to linear")?.meant == "linear")
+        #expect(Learner.alias(said: "open new warp terminal", meant: "open warp")?.said == "new warp terminal")
+        #expect(Learner.alias(said: "MT recycle B", meant: "empty recycle bin")?.said == "mt recycle b")
+    }
+
+    @Test func pairsWithDifferentVerbsOrNothingLeftTeachNothing() {
+        #expect(Learner.alias(said: "open slack", meant: "close slack") == nil)
+        #expect(Learner.alias(said: "open slack", meant: "slack") == nil)
+        #expect(Learner.alias(said: "open the slack", meant: "open slack") == nil)
+        #expect(Learner.alias(said: "open", meant: "open slack") == nil)
     }
 }

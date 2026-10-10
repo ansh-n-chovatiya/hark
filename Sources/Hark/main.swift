@@ -646,6 +646,7 @@ private extension Outcome {
 }
 
 func reviewFailures(save: Bool) async -> Int32 {
+    ModelCLIs.discover()
     let config = (try? ConfigStore.load()) ?? Config()
     let center = LearningCenter(
         activity: ActivityLog(url: Paths.activity), history: TimingLog(url: Paths.timings),
@@ -729,7 +730,10 @@ func runCommandLine(_ flag: String, _ values: [String]) async -> Int32 {
             return 2
         }
         let config = (try? ConfigStore.load()) ?? Config()
-        let suggestion = Suggestion(id: "proof", kind: .name, title: "", detail: "", said: values[0], meant: values[1])
+        let name = Learner.alias(said: values[0], meant: values[1])
+        let suggestion = Suggestion(
+            id: "proof", kind: .name, title: "", detail: "", said: name?.said ?? values[0], meant: name?.meant ?? values[1],
+            example: values[0])
         let worked = await SuggestionProof.shared.works(suggestion, config: config)
         print(worked ? "works: Hark would act on \"\(values[0])\" with that name" : "does not work")
         return worked ? 0 : 1

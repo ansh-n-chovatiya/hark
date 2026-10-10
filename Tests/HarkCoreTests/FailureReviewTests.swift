@@ -24,7 +24,7 @@ import Testing
     }
 
     @Test func aReportForAnExistingNameIsIgnored() {
-        let config = Config(aliases: ["open slak": "open slack"])
+        let config = Config(aliases: ["slak": "slack"])
         #expect(Learner.names(reports: [report("open slak", wanted: "open slack")], config: config).isEmpty)
     }
 
@@ -145,7 +145,7 @@ import Testing
     // MARK: Added, then removed by hand
 
     private let alias = Suggestion(
-        id: "name:open slak>open slack", kind: .name, title: "t", detail: "d", said: "open slak", meant: "open slack")
+        id: "name:slak>slack", kind: .name, title: "t", detail: "d", said: "slak", meant: "slack")
 
     @Test func aNameTakenOutOfTheSettingsByHandIsForgottenAndNotOfferedAgain() throws {
         let folder = try scratch()
@@ -171,9 +171,9 @@ import Testing
         var config = Config()
         center.accept(alias, into: &config)
         let again = Suggestion(
-            id: "ai:open slak>open slack", kind: .name, title: "t", detail: "d", said: "open slak", meant: "open slack")
+            id: "ai:slak>slack", kind: .name, title: "t", detail: "d", said: "slak", meant: "slack")
         center.saveReview([again])
-        config.aliases = ["open slak": "open slack"]
+        config.aliases = ["slak": "slack"]
         #expect(center.snapshot(config: config).suggestions.isEmpty)
     }
 

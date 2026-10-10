@@ -12,6 +12,8 @@ public struct Suggestion: Codable, Sendable, Equatable, Identifiable {
     /// For a name: the words that were heard, and what was meant.
     public var said: String?
     public var meant: String?
+    /// For a name: the whole command that failed, which is what is tried out before the name is offered.
+    public var example: String?
     /// For a page: the name to say and where it goes.
     public var pageName: String?
     public var address: String?
@@ -22,7 +24,7 @@ public struct Suggestion: Codable, Sendable, Equatable, Identifiable {
 
     public init(
         id: String, kind: Kind, title: String, detail: String, said: String? = nil, meant: String? = nil,
-        pageName: String? = nil, address: String? = nil, routineName: String? = nil, steps: [String]? = nil,
+        example: String? = nil, pageName: String? = nil, address: String? = nil, routineName: String? = nil, steps: [String]? = nil,
         pages: [String: String]? = nil
     ) {
         self.id = id
@@ -31,6 +33,7 @@ public struct Suggestion: Codable, Sendable, Equatable, Identifiable {
         self.detail = detail
         self.said = said
         self.meant = meant
+        self.example = example
         self.pageName = pageName
         self.address = address
         self.routineName = routineName
@@ -98,16 +101,18 @@ public enum Learner {
         }
         let known = Set(config.aliases.keys.map(normalize))
         return pairs.values
-            .filter { ($0.count >= 2 || $0.similarity >= 0.6) && !known.contains($0.said) }
+            .filter { ($0.count >= 2 || $0.similarity >= 0.6) }
             .sorted { ($0.count, $0.said) > ($1.count, $1.said) }
-            .map { pair in
-                Suggestion(
-                    id: "name:\(pair.said)>\(pair.meant)", kind: .name,
-                    title: "When you say \u{201C}\(pair.said)\u{201D}, hear \u{201C}\(pair.meant)\u{201D}",
+            .compactMap { pair -> Suggestion? in
+                // Only the thing named is learned, not the whole command.
+                guard let name = alias(said: pair.said, meant: pair.meant), !known.contains(name.said) else { return nil }
+                return Suggestion(
+                    id: "name:\(name.said)>\(name.meant)", kind: .name,
+                    title: "When you say \u{201C}\(name.said)\u{201D}, hear \u{201C}\(name.meant)\u{201D}",
                     detail: pair.count == 1
                         ? "Hark missed it, then you said it the other way and it worked."
                         : "Hark missed it \(pair.count) times, then you said it the other way and it worked.",
-                    said: pair.said, meant: pair.meant)
+                    said: name.said, meant: name.meant, example: pair.said)
             }
     }
 
@@ -129,15 +134,17 @@ public enum Learner {
         let known = Set(config.aliases.keys.map(normalize))
         var made: [String: Suggestion] = [:]
         for report in reports {
-            let said = normalize(report.heard), meant = normalize(report.wanted)
-            guard !said.isEmpty, !meant.isEmpty, said != meant, !known.contains(said),
-                  wordCount(said) <= mostWordsInACommand, wordCount(meant) <= mostWordsInACommand,
-                  similarity(said, meant) >= 0.3 || sharesAWord(said, meant)
+            let heard = normalize(report.heard), wanted = normalize(report.wanted)
+            guard !heard.isEmpty, !wanted.isEmpty, heard != wanted,
+                  wordCount(heard) <= mostWordsInACommand, wordCount(wanted) <= mostWordsInACommand,
+                  similarity(heard, wanted) >= 0.3 || sharesAWord(heard, wanted),
+                  let name = alias(said: heard, meant: wanted), !known.contains(name.said)
             else { continue }
-            made[said + ">" + meant] = Suggestion(
-                id: "name:\(said)>\(meant)", kind: .name,
-                title: "When you say \u{201C}\(said)\u{201D}, hear \u{201C}\(meant)\u{201D}",
-                detail: "You told Hark this went wrong and what you wanted.", said: said, meant: meant)
+            made[name.said + ">" + name.meant] = Suggestion(
+                id: "name:\(name.said)>\(name.meant)", kind: .name,
+                title: "When you say \u{201C}\(name.said)\u{201D}, hear \u{201C}\(name.meant)\u{201D}",
+                detail: "You told Hark this went wrong and what you wanted.", said: name.said, meant: name.meant,
+                example: heard)
         }
         return made.values.sorted { $0.id < $1.id }
     }
@@ -284,6 +291,44 @@ public enum Learner {
             groups[phrase] = group
         }
         return Array(groups.values.sorted { ($0.count, $0.lastSeen) > ($1.count, $1.lastSeen) }.prefix(10))
+    }
+
+    // MARK: What a pair teaches
+
+    private static let leadingVerbs: Set<String> = [
+        "open", "switch", "go", "show", "close", "quit", "hide", "focus", "find", "launch", "bring", "jump",
+    ]
+    private static let articles: Set<String> = ["the", "a", "an", "my"]
+
+    /// A name Hark can keep from a command that failed and the one that worked. Hark's names are for the
+    /// thing named ("slack"), so a verb both commands start with ("open") is dropped. Nil when what is left is
+    /// the same, empty, or the commands start with different verbs.
+    public static func alias(said: String, meant: String) -> (said: String, meant: String)? {
+        func withoutVerb(_ words: [String]) -> (verb: String, rest: [String])? {
+            guard let first = words.first, leadingVerbs.contains(first) else { return nil }
+            var rest = Array(words.dropFirst())
+            if let next = rest.first, ["to", "up"].contains(next) { rest.removeFirst() }
+            return (first, rest)
+        }
+        func trimmed(_ words: [String]) -> [String] {
+            var words = words
+            while let first = words.first, articles.contains(first) { words.removeFirst() }
+            return words
+        }
+        var a = normalize(said).split(separator: " ").map(String.init)
+        var b = normalize(meant).split(separator: " ").map(String.init)
+        switch (withoutVerb(a), withoutVerb(b)) {
+        case let (first?, second?):
+            guard first.verb == second.verb else { return nil }
+            (a, b) = (first.rest, second.rest)
+        case (nil, nil):
+            break
+        default:
+            return nil
+        }
+        (a, b) = (trimmed(a), trimmed(b))
+        guard !a.isEmpty, !b.isEmpty, a != b else { return nil }
+        return (a.joined(separator: " "), b.joined(separator: " "))
     }
 
     // MARK: Words
