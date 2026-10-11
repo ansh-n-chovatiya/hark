@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="900" height="220" viewBox="0 0 900 220" role="img" aria-label="Hark, talk to your Mac">
   <defs>
     <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#ff8026"/><stop offset="1" stop-color="#e64d12"/>
+      <stop offset="0" stop-color="#4da3a8"/><stop offset="1" stop-color="#1f6680"/>
     </linearGradient>
   </defs>
   <rect width="900" height="220" rx="24" fill="url(#g)"/>
@@ -11,5 +11,5 @@
     <rect x="194" y="92" width="12" height="36" rx="6"/>
   </g>
   <text x="250" y="112" font-family="-apple-system,Helvetica,Arial,sans-serif" font-size="76" font-weight="700" fill="#fff">Hark</text>
-  <text x="252" y="156" font-family="-apple-system,Helvetica,Arial,sans-serif" font-size="26" fill="#fff1e6">Hold a key. Say it. Your Mac does it.</text>
+  <text x="252" y="156" font-family="-apple-system,Helvetica,Arial,sans-serif" font-size="26" fill="#e6f4f5">Hold a key. Say it. Your Mac does it.</text>
 </svg>
