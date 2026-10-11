@@ -14,6 +14,14 @@ import SwiftUI
 
     /// Opens what Hark has noticed.
     public var onLearning: (() -> Void)?
+    /// "What can I say?", "History…", "Check for updates…", and pausing: true to pause, false to resume.
+    public var onHelp: (() -> Void)?
+    public var onHistory: (() -> Void)?
+    public var onUpdates: (() -> Void)?
+    public var onPause: ((Bool) -> Void)?
+    private var paused = false
+    private var readyStatus: (text: String, detail: String?)?
+    private let pauseItem = NSMenuItem(title: "Pause Hark", action: #selector(togglePause), keyEquivalent: "")
 
     private static let lastCommandLimit = 60
 
@@ -47,6 +55,14 @@ import SwiftUI
         dictationItem.target = self
         dictationItem.image = Self.icon("doc.on.clipboard")
         dictationItem.isHidden = true
+        let help = NSMenuItem(title: "What can I say?", action: #selector(showHelp), keyEquivalent: "")
+        help.target = self
+        help.image = Self.icon("questionmark.bubble")
+        menu.addItem(help)
+        let history = NSMenuItem(title: "History…", action: #selector(showHistory), keyEquivalent: "")
+        history.target = self
+        history.image = Self.icon("clock.arrow.circlepath")
+        menu.addItem(history)
         menu.addItem(dictationItem)
         learningItem.target = self
         learningItem.image = Self.icon("lightbulb")
@@ -55,6 +71,14 @@ import SwiftUI
         menu.addItem(.separator())
 
         // Hidden until something handles it, so the menu never offers an entry that does nothing.
+        pauseItem.target = self
+        pauseItem.image = Self.icon("pause.circle")
+        menu.addItem(pauseItem)
+        let updates = NSMenuItem(title: "Check for updates…", action: #selector(checkUpdates), keyEquivalent: "")
+        updates.target = self
+        updates.image = Self.icon("arrow.down.circle")
+        menu.addItem(updates)
+        menu.addItem(.separator())
         settingsItem.target = self
         settingsItem.image = Self.icon("gearshape")
         settingsItem.isHidden = true
@@ -79,8 +103,11 @@ import SwiftUI
 
     /// The first line of the menu: how to use Hark, or what it is waiting for. With an action the
     /// line can be clicked, for example to open the settings pane it names.
-    public func setStatus(_ text: String, action: (() -> Void)? = nil) {
+    public func setStatus(_ text: String, detail: String? = nil, action: (() -> Void)? = nil) {
+        if action == nil { readyStatus = (text, detail) }
+        guard !paused else { return }
         header.status = text
+        header.detail = detail
         header.action = action.map { run in { [weak self] in
             self?.statusItem.menu?.cancelTracking()
             run()
@@ -112,6 +139,25 @@ import SwiftUI
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(lastDictation, forType: .string)
     }
+
+    @objc private func togglePause() {
+        paused.toggle()
+        pauseItem.title = paused ? "Resume Hark" : "Pause Hark"
+        pauseItem.image = Self.icon(paused ? "play.circle" : "pause.circle")
+        if paused {
+            header.status = "Paused"
+            header.detail = "Hark is not listening. Choose Resume Hark in this menu."
+            header.action = nil
+        } else if let readyStatus {
+            header.status = readyStatus.text
+            header.detail = readyStatus.detail
+        }
+        onPause?(paused)
+    }
+
+    @objc private func showHelp() { onHelp?() }
+    @objc private func showHistory() { onHistory?() }
+    @objc private func checkUpdates() { onUpdates?() }
 
     @objc private func openLearning() {
         onLearning?()

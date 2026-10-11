@@ -186,3 +186,25 @@ struct HarkMark: View {
         .accessibilityHidden(true)
     }
 }
+
+/// Buttons in Settings: a clear brand-edged glass pill that fills with the brand colour when pressed, with text that reads
+/// at a glance. A prominent button is solid brand colour with white text.
+struct HarkButtonStyle: ButtonStyle {
+    var prominent = false
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.body.weight(.medium))
+            .foregroundStyle(prominent ? Color.white : Color.primary)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 6)
+            .frame(minHeight: 30)
+            .background {
+                Capsule().fill(prominent ? AnyShapeStyle(HarkBrand.theme.gradient) : AnyShapeStyle(HarkBrand.accent.opacity(configuration.isPressed ? 0.32 : 0.16)))
+            }
+            .overlay { Capsule().strokeBorder(HarkBrand.accent.opacity(prominent ? 0 : 0.7), lineWidth: 1) }
+            .opacity(isEnabled ? 1 : 0.45)
+            .scaleEffect(configuration.isPressed ? 0.98 : 1)
+    }
+}

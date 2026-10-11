@@ -47,6 +47,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     private let clock = ContinuousClock()
     private var menuBar: MenuBar?
+    /// Set from the menu: Hark ignores its keys while paused.
+    private var isPaused = false
     private var pipeline: Pipeline?
     private var hotkey: Hotkey?
     private var typeHotkey: Hotkey?
@@ -112,6 +114,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         menuBar?.onSettings = { [weak self] in self?.showSettings() }
         menuBar?.onLearning = { [weak self] in self?.showSettings(.learning) }
+        menuBar?.onHistory = { [weak self] in self?.showSettings(.history) }
+        menuBar?.onPause = { [weak self] paused in self?.isPaused = paused }
+        menuBar?.onUpdates = {
+            if let url = URL(string: "https://github.com/ansh-n-chovatiya/hark/releases/latest") { NSWorkspace.shared.open(url) }
+        }
+        menuBar?.onHelp = { [weak self] in
+            Task { @MainActor in
+                guard let pipeline = self?.pipeline else { return }
+                if case .answer(let text) = await pipeline.run(transcript: "what can I say", transcribeMs: 0) {
+                    self?.overlay.show(.answer(text))
+                }
+            }
+        }
         overlay.onPick = { [weak self] number in
             Task {
                 guard let self, let pipeline = self.pipeline else { return }
@@ -295,10 +310,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self.hotkey = hotkey
             logger.notice("key ready: \(key, privacy: .public)")
             startTypeKey()
-            let typing = config.typeKey.isEmpty ? "" : ", tap \(Self.spokenName(ofKey: config.typeKey)) to type"
-            let dictating = config.dictationKey.isEmpty
-                ? "" : ", hold \(Self.spokenName(ofKey: config.dictationKey)) to dictate"
-            menuBar?.setStatus("Hold \(Self.spokenName(ofKey: key)) to speak\(typing)\(dictating)")
+            var others: [String] = []
+            if !config.typeKey.isEmpty { others.append("tap \(Self.spokenName(ofKey: config.typeKey)) to type") }
+            if !config.dictationKey.isEmpty { others.append("hold \(Self.spokenName(ofKey: config.dictationKey)) to dictate") }
+            let detail = others.isEmpty ? nil : others.joined(separator: " \u{00B7} ").prefix(1).uppercased()
+                + others.joined(separator: " \u{00B7} ").dropFirst()
+            menuBar?.setStatus("Hold \(Self.spokenName(ofKey: key)) to speak", detail: detail)
         } catch {
             logger.error("key not ready: \(error.localizedDescription, privacy: .public)")
             menuBar?.setStatus(error.localizedDescription)
@@ -316,7 +333,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let key = Hotkey(
             key: config.typeKey,
             onDown: {},
-            onUp: { [weak self] in Self.onMain { self?.commandBar.show() } },
+            onUp: { [weak self] in Self.onMain { if self?.isPaused == false { self?.commandBar.show() } } },
             onCancel: {})
         do {
             try key.start()
@@ -365,7 +382,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// The dictation key is held (talk while it is down), or tapped twice (hands-free, one tap to finish).
     private func dictationDown() {
-        guard !isHolding, !dictationBusy else { return }
+        guard !isPaused, !isHolding, !dictationBusy else { return }
         switch taps.keyDown(at: Date()) {
         case .start:
             beginDictation()
@@ -523,7 +540,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func keyDown() {
-        guard !isDictating, !dictationBusy else { return }
+        guard !isPaused, !isDictating, !dictationBusy else { return }
         isHolding = true
         lastHeard = ""
         pressedAt = clock.now

@@ -23,6 +23,7 @@ struct SettingsShell: View {
         }
         .background { Backdrop(theme: HarkBrand.theme) }
         .tint(HarkBrand.accent)
+        .buttonStyle(HarkButtonStyle())
         .frame(width: SettingsLayout.width, height: SettingsLayout.height)
         .task { await model.refreshPermissions() }
     }

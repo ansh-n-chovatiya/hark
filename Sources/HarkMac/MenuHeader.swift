@@ -4,6 +4,8 @@ import SwiftUI
 /// What the top of the menu says. The menu bar sets it; the view reads it.
 @MainActor @Observable final class MenuHeaderState {
     var status = "Getting ready"
+    /// A quieter second line: the other keys.
+    var detail: String?
     /// Set when the status line can be clicked, for example to open the settings pane it names.
     var action: (() -> Void)?
     var lastCommand: String?
@@ -58,10 +60,18 @@ struct MenuHeaderView: View {
             } else {
                 HarkMark(size: 34)
             }
-            Text(state.status)
-                .font(.body)
-                .foregroundStyle(.primary)
-                .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(state.status)
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .fixedSize(horizontal: false, vertical: true)
+                if let detail = state.detail, !needsAttention {
+                    Text(detail)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
             if needsAttention {
                 Spacer(minLength: 4)
                 Image(systemName: "chevron.right").foregroundStyle(.secondary).accessibilityHidden(true)

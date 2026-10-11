@@ -4,6 +4,13 @@ All notable changes are written here, newest first. Versions follow
 [Semantic Versioning](https://semver.org); while Hark is below 1.0, a minor bump may change
 behaviour.
 
+## 0.2.18 — 2026-10-11
+
+- Buttons in Settings are clear brand-edged pills that fill when pressed (they were pale text on a faint box).
+- The menu's first line is short ("Hold right Option to speak"); the other keys sit on a quieter second line.
+- New menu entries: What can I say?, History…, Pause Hark / Resume Hark (Hark ignores its keys while paused), and Check
+  for updates….
+
 ## 0.2.17 — 2026-10-11
 
 - The menu-bar menu shows the same app icon as the Dock and Settings (one HarkMark view used in all of them).
