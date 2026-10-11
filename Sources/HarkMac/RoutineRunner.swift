@@ -34,7 +34,9 @@ enum RoutineRunner {
         return Routines.line(for: outputs)
     }
 
-    static func launch(_ command: ShellCommand, timeout: Duration) async throws -> Finished {
+    /// `sandbox` nil runs the command as written (a routine). Otherwise it runs under `CommandSandbox`, with the value
+    /// saying whether changes to files are allowed.
+    static func launch(_ command: ShellCommand, timeout: Duration, sandbox: Bool? = nil) async throws -> Finished {
         // Output goes to a file, not a pipe: a pipe stays open for as long as anything the
         // command started is still running, and reading it would wait for that too.
         let capture = FileManager.default.temporaryDirectory.appending(path: "hark-step-\(UUID().uuidString).log")
@@ -44,8 +46,14 @@ enum RoutineRunner {
         defer { try? writer.close() }
 
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/bin/zsh")
-        process.arguments = ["-lc", command.text]
+        if let sandbox {
+            let wrapped = CommandSandbox.arguments(running: command.text, allowingChanges: sandbox)
+            process.executableURL = URL(fileURLWithPath: wrapped.executable)
+            process.arguments = wrapped.arguments
+        } else {
+            process.executableURL = URL(fileURLWithPath: "/bin/zsh")
+            process.arguments = ["-lc", command.text]
+        }
         process.currentDirectoryURL = FileManager.default.homeDirectoryForCurrentUser
         process.environment = ProcessInfo.processInfo.environment.merging(command.environment) { _, ours in ours }
         process.standardInput = FileHandle.nullDevice

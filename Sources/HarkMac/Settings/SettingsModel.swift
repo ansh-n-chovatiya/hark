@@ -243,6 +243,14 @@ enum ModelLookup: Equatable {
         }
     }
 
+    func setTerminalCommands(_ on: Bool) {
+        update { $0.terminalCommands = on }
+    }
+
+    func setTerminalChanges(_ on: Bool) {
+        update { $0.terminalChanges = on }
+    }
+
     func setReviewsFailures(_ on: Bool) {
         update { $0.reviewsFailures = on }
     }

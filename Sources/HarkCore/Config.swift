@@ -46,6 +46,12 @@ public struct Config: Codable, Sendable, Equatable {
     /// Apps to treat as terminals on top of the ones Hark recognises by what they open (shell scripts and
     /// programs): names or bundle ids. Hark sends no keys into a terminal.
     public var terminalApps: [String]
+    /// Lets Hark run a terminal command for a request the rules cannot settle ("which process is using port 3000").
+    /// Every command is shown and asked about first, and runs in a sandbox. On unless the user turns it off.
+    public var terminalCommands: Bool
+    /// Also lets those commands change files and use the network (git pull, installs). They still cannot delete or
+    /// move anything. Off unless the user turns it on.
+    public var terminalChanges: Bool
     /// Lets the model Hark already uses read the commands that failed, to propose names for them. Only
     /// the failed phrases are sent, and only when `learns` is on.
     public var reviewsFailures: Bool
@@ -83,6 +89,8 @@ public struct Config: Codable, Sendable, Equatable {
         dictationKey: String = "",
         learns: Bool = true,
         terminalApps: [String] = [],
+        terminalCommands: Bool = true,
+        terminalChanges: Bool = false,
         reviewsFailures: Bool = true,
         cli: String = "auto",
         cliModel: String = "haiku",
@@ -106,6 +114,8 @@ public struct Config: Codable, Sendable, Equatable {
         self.dictationKey = dictationKey
         self.learns = learns
         self.terminalApps = terminalApps
+        self.terminalCommands = terminalCommands
+        self.terminalChanges = terminalChanges
         self.reviewsFailures = reviewsFailures
         self.cli = cli
         self.cliModel = cliModel
@@ -134,6 +144,8 @@ public struct Config: Codable, Sendable, Equatable {
         dictationKey = try values.decodeIfPresent(String.self, forKey: .dictationKey) ?? defaults.dictationKey
         learns = try values.decodeIfPresent(Bool.self, forKey: .learns) ?? defaults.learns
         terminalApps = try values.decodeIfPresent([String].self, forKey: .terminalApps) ?? defaults.terminalApps
+        terminalCommands = try values.decodeIfPresent(Bool.self, forKey: .terminalCommands) ?? defaults.terminalCommands
+        terminalChanges = try values.decodeIfPresent(Bool.self, forKey: .terminalChanges) ?? defaults.terminalChanges
         reviewsFailures = try values.decodeIfPresent(Bool.self, forKey: .reviewsFailures) ?? defaults.reviewsFailures
         cli = try values.decodeIfPresent(String.self, forKey: .cli) ?? defaults.cli
         cliModel = try values.decodeIfPresent(String.self, forKey: .cliModel) ?? defaults.cliModel

@@ -140,7 +140,7 @@ the way of what you are writing. Drag it anywhere and Hark remembers the spot; t
 ## Safety
 
 - Hark cannot delete, move, rename or overwrite files, and cannot empty the trash.
-- It does not run commands, scripts or programs a model chose. The only commands it runs are the routines you wrote yourself. It presses shortcuts and buttons, never in a terminal, and types only words you said.
+- It runs a command a model chose only through the terminal-commands switch (Settings, Understanding): shown to you first, run only after your yes, in a sandbox that cannot delete or move anything. Otherwise the only commands it runs are the routines you wrote yourself. It presses shortcuts and buttons, never in a terminal, and types only words you said.
 - It never reads the contents of your files, and your clipboard never goes to a model.
 - It will not open a web address you did not name or that is not already open in a tab.
 - Closing, quitting, and buttons that send, pay or submit always ask first.

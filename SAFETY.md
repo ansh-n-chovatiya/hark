@@ -9,10 +9,10 @@ the tools are able to do, whatever the model asks for.
 No tool exists for these, and none is to be added.
 
 - Delete, move, rename or overwrite a file or folder, or empty the trash.
-- Run a command, a script, an installer or a program that a model chose. Hark does not type, so
-  it cannot type one either: it presses keyboard shortcuts only, and sends nothing at all to a
-  terminal. It will not open a file that would run when opened. The one way Hark runs commands
-  is a routine, and every command in a routine is one you wrote yourself in your settings file.
+- Run a command, a script, an installer or a program that a model chose, except as described under "Terminal
+  commands" below. Hark does not type, so it cannot type one: it presses keyboard shortcuts only, and sends nothing
+  at all to a terminal window. It will not open a file that would run when opened. Apart from that, the one way Hark
+  runs commands is a routine, and every command in a routine is one you wrote yourself in your settings file.
   The one routine Hark writes for you is a saved setup, and it holds only steps that open an
   app or a folder by name, built by fixed rules from what is open, never by a model.
   A model can pick which of your routines to run and pass along words you said. It cannot write
@@ -163,3 +163,19 @@ added only if you tap Add.
 - Automation for System Events: to change light and dark appearance and lock the screen.
 
 If you find a way to make Hark do something on the Never list, that is a bug worth reporting.
+
+## Terminal commands (a switch, on by default)
+
+For tasks only the terminal can do ("what is using port 3000", "what changed in this repo"), a model may propose one
+command with the `run_command` tool. Settings, Understanding, "Let Hark run terminal commands for me" turns it off
+completely: with it off the tool is not offered and "run a script" is refused as before.
+
+- **It always asks.** The exact command is shown and nothing runs until you say yes. There is no setting that skips
+  this.
+- **macOS enforces the limits, not Hark reading the command.** The command runs under `sandbox-exec`. By default it
+  can read but not write anywhere (apart from temporary files), cannot delete, move or rename anything, and has no
+  network. A second switch, "Also let those commands change files and use the network", off by default, lets it create
+  and overwrite files and use the network; it still cannot delete, move or rename. These limits are tested against real
+  commands in `RunCommandToolTests`.
+- **What it prints stays with you.** The output is shown to you and is never sent back to a model.
+- It runs for at most 20 seconds, with no keyboard input, from your home folder.

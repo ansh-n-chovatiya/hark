@@ -14,9 +14,28 @@ struct UnderstandingTab: View {
                 modelOnThisMac
                 if let tool = ModelCLIs.found.first { commandLineTool(tool) }
                 aiTools
+                terminal
             }
         }
         .formStyle(.grouped)
+    }
+
+    private var terminal: some View {
+        Section {
+            Toggle("Let Hark run terminal commands for me", isOn: Binding(
+                get: { model.config.terminalCommands }, set: { model.setTerminalCommands($0) }))
+            HelperText(
+                text: "For tasks only the terminal can do, such as \u{201C}what is using port 3000\u{201D}. Hark shows "
+                    + "the exact command and runs it only after you say yes. It cannot delete or move anything, and "
+                    + "what it prints stays on this Mac.")
+            if model.config.terminalCommands {
+                Toggle("Also let those commands change files and use the network", isOn: Binding(
+                    get: { model.config.terminalChanges }, set: { model.setTerminalChanges($0) }))
+                HelperText(
+                    text: "Needed for things like git pull or installing a tool. Commands still cannot delete, move "
+                        + "or rename files, but they can create and overwrite them.")
+            }
+        }
     }
 
     private var onlineModel: some View {

@@ -16,6 +16,7 @@ open_url
 press_element
 press_keys
 quit_app
+run_command
 run_routine
 set_appearance
 set_field

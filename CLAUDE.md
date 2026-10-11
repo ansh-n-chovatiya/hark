@@ -26,7 +26,10 @@ wrong task.
   only when the rules are unsure and the other models have failed.
 - Clipboard text never leaves the machine and never reaches any model, local or hosted.
 - Hark never deletes, moves, renames or overwrites the user's files, never empties the trash and
-  never runs a command a model wrote (decision 0008). Do not add an action that can. Its actions
+  never runs a command a model wrote, except `run_command`: one command, asked about every time, run in a macOS
+  sandbox that cannot delete, move or rename and, by default, cannot write or use the network, switchable off in
+  Settings, its output never returned to a model (decision 0008, relaxed by the owner on 2026-10-11; see SAFETY.md).
+  Do not add any other action that can. Its actions
   are limited to things that can be reopened: switching, opening, hiding, closing tabs and
   windows, quitting apps, and pasting. Closing or quitting always asks first when a model chose it.
 - The model key lives in the macOS Keychain (service `dev.hark.app`, account `model-key`); a key typed into

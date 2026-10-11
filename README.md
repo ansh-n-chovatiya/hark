@@ -70,7 +70,7 @@ Hark is built so that even if it misunderstands you, it **can't do real damage**
 | --- | --- |
 | Delete, move, rename or overwrite your files | Shows what it's about to do before closing or quitting |
 | Empty the trash | Asks before buttons that send, post, pay or submit |
-| Run commands an AI wrote | Keeps your clipboard on your Mac, away from every AI model |
+| Run a terminal command without showing it to you and waiting for your yes (they run in a sandbox that cannot delete or move anything, and the switch is in Settings) | Keeps your clipboard on your Mac, away from every AI model |
 | Read what's inside your files | Lets you say "undo that" where it can |
 | Open a web address you didn't name | Locks your clipboard history with a key only your account can read |
 

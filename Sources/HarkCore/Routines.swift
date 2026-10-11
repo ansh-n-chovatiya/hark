@@ -18,6 +18,12 @@ public struct ShellCommand: Sendable, Equatable {
     public let environment: [String: String]
     /// The folder's name, when the step repeats for each project.
     public let label: String?
+
+    public init(text: String, environment: [String: String], label: String?) {
+        self.text = text
+        self.environment = environment
+        self.label = label
+    }
 }
 
 public struct RoutineError: LocalizedError, Equatable {

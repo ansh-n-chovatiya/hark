@@ -6,6 +6,12 @@ behaviour.
 
 ## 0.2.8 — 2026-10-11
 
+- Terminal commands. For tasks only the terminal can do ("what is using port 3000", "what changed in this repo"), Hark
+  can run one command: it shows the exact command and runs it only after you say yes, in a macOS sandbox that cannot
+  delete, move or rename and, by default, cannot write files or use the network. What it prints is shown to you and
+  never goes back to a model. A switch in Settings, Understanding, turns it off; a second switch lets commands create
+  files and use the network (git pull, installs).
+
 - "Open Warp's settings" no longer stops with "Hark can't use a terminal's menus" when a model chooses the item: in a
   terminal a model may choose a new tab or window and items in the app's own first menu (settings, about), the same as
   the rules.
