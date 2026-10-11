@@ -4,6 +4,12 @@ All notable changes are written here, newest first. Versions follow
 [Semantic Versioning](https://semver.org); while Hark is below 1.0, a minor bump may change
 behaviour.
 
+## 0.2.15 — 2026-10-11
+
+- The installer finds the newest version's own address instead of the "latest" link, which can serve a stale checksum for a few
+  minutes after a release ("The download is damaged").
+- General: the punctuation switch no longer crowds the one below it.
+
 ## 0.2.14 — 2026-10-11
 
 - The brand colour is now a calm deep teal (icon, Settings, menu, overlay, banner), replacing the orange.

@@ -10,7 +10,10 @@ fi
 
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
-base="https://github.com/$repo/releases/latest/download"
+# The newest version's own address: the "latest" download link can serve a stale checksum for a few minutes after a release.
+tag=$(curl -fsSIL -o /dev/null -w '%{url_effective}' "https://github.com/$repo/releases/latest" | sed 's|.*/tag/||')
+base="https://github.com/$repo/releases/download/$tag"
+[ -n "$tag" ] || base="https://github.com/$repo/releases/latest/download"
 curl -fsSL "$base/Hark-macos-arm64.zip" -o "$work/Hark.zip"
 curl -fsSL "$base/Hark-macos-arm64.zip.sha256" -o "$work/Hark.zip.sha256"
 [ "$(shasum -a 256 "$work/Hark.zip" | cut -d' ' -f1)" = "$(cut -d' ' -f1 "$work/Hark.zip.sha256")" ] \
