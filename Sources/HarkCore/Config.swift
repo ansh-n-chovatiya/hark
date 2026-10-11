@@ -43,6 +43,9 @@ public struct Config: Codable, Sendable, Equatable {
     /// Whether Hark learns from how the Mac is used: it notes which apps and websites (names only) come
     /// to the front, and offers names, pages and routines. On unless the user turns it off.
     public var learns: Bool
+    /// Apps to treat as terminals on top of the ones Hark recognises by what they open (shell scripts and
+    /// programs): names or bundle ids. Hark sends no keys into a terminal.
+    public var terminalApps: [String]
     /// Lets the model Hark already uses read the commands that failed, to propose names for them. Only
     /// the failed phrases are sent, and only when `learns` is on.
     public var reviewsFailures: Bool
@@ -79,6 +82,7 @@ public struct Config: Codable, Sendable, Equatable {
         typeKey: String = "rightCommand",
         dictationKey: String = "",
         learns: Bool = true,
+        terminalApps: [String] = [],
         reviewsFailures: Bool = true,
         cli: String = "auto",
         cliModel: String = "haiku",
@@ -101,6 +105,7 @@ public struct Config: Codable, Sendable, Equatable {
         self.typeKey = typeKey
         self.dictationKey = dictationKey
         self.learns = learns
+        self.terminalApps = terminalApps
         self.reviewsFailures = reviewsFailures
         self.cli = cli
         self.cliModel = cliModel
@@ -128,6 +133,7 @@ public struct Config: Codable, Sendable, Equatable {
         typeKey = try values.decodeIfPresent(String.self, forKey: .typeKey) ?? defaults.typeKey
         dictationKey = try values.decodeIfPresent(String.self, forKey: .dictationKey) ?? defaults.dictationKey
         learns = try values.decodeIfPresent(Bool.self, forKey: .learns) ?? defaults.learns
+        terminalApps = try values.decodeIfPresent([String].self, forKey: .terminalApps) ?? defaults.terminalApps
         reviewsFailures = try values.decodeIfPresent(Bool.self, forKey: .reviewsFailures) ?? defaults.reviewsFailures
         cli = try values.decodeIfPresent(String.self, forKey: .cli) ?? defaults.cli
         cliModel = try values.decodeIfPresent(String.self, forKey: .cliModel) ?? defaults.cliModel

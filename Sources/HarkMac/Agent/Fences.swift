@@ -26,10 +26,6 @@ struct FenceError: LocalizedError {
 
 /// The fences one command's tools share (see SAFETY.md).
 final class Fences: Sendable {
-    private static let terminalNames = [
-        "terminal", "iterm", "warp", "kitty", "alacritty", "ghostty", "wezterm", "hyper", "tabby",
-    ]
-
     private let heard: String
     private let openAddresses: [String]
     private let fileName: @Sendable (String) -> String?
@@ -105,7 +101,7 @@ final class Fences: Sendable {
     /// A terminal's menus can run things, so the model gets no way into one.
     private func refuseTerminal(_ app: String?) throws {
         let name = (app ?? "").lowercased()
-        guard !Self.terminalNames.contains(where: name.contains) else {
+        guard !AppNames.isTerminal(named: name) else {
             throw FenceError(message: "Hark does not use a terminal's menus.")
         }
     }

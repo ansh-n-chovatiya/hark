@@ -27,7 +27,7 @@ key held ─► MicrophoneInput ─► Parakeet / Apple recogniser ─► text
 | Target | Path | Role |
 | --- | --- | --- |
 | `HarkCore` | `Sources/HarkCore` | No macOS dependence: config, parser, matcher, safety rules, routines, clipboard store, undo, timings, the rule layers (`WebSearch`, `SystemCommand`, `WindowLayout`, `AppAction`, `FrontAction`), `CLIToolProtocol`, learning (`Learner`, `LearningCenter`, `ActivityLog`), `ConfigSecrets`, `DictationTaps`. Fully unit tested. |
-| `HarkMac` | `Sources/HarkMac` | Everything that touches the Mac: hotkey, speech, overlay, dictation pill, settings window, sources (apps, windows, Chrome tabs, files), model tools, `ModelChain` and the AI-tool adapter, Keychain, activity recorder, text typing. |
+| `HarkMac` | `Sources/HarkMac` | Everything that touches the Mac: hotkey, speech, overlay, dictation pill, settings window, sources (apps, windows, browser tabs, files), model tools, `ModelChain` and the AI-tool adapter, Keychain, activity recorder, text typing. |
 | `hark` | `Sources/Hark` | Entry point and command-line flags (see below). |
 | `HarkCoreTests`, `HarkMacTests` | `Tests/` | Unit tests. `HarkMacTests` covers the model chain with fake models. |
 

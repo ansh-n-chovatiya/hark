@@ -53,7 +53,10 @@ These can be put back, usually with "undo that".
 - Bring an app, window or tab to the front, or hide an app.
 - Open an app, a file, a folder or a new tab.
 - Choose any other menu item, press any other shortcut, or press any other button, in an app that
-  is not a terminal.
+  is not a terminal. A terminal is any app that declares shell scripts or programs among what it opens (found on
+  this Mac, not from a list), plus any you add as `terminalApps` in the settings file. In a terminal Hark only
+  chooses "new tab" or "new window" and items in the app's own first menu (its settings, about), as menu clicks
+  send no keys.
 - "Open Notes and create a new note": open the app, then choose the one menu item in its menu bar that
   fits what you said, by rule and with no model. It never chooses items about closing, quitting or
   deleting, never in a terminal, says so when the item is greyed out, and lists the options instead
@@ -103,7 +106,7 @@ may use what it receives. With only a local model set up, nothing leaves the Mac
 ## What Hark remembers about how you use your Mac
 Learning is on by default and has its own switch (Settings, Learning). While it is on, Hark keeps
 `activity.jsonl` in `~/Library/Application Support/Hark`, readable only by you: the name of each app
-that came to the front, and the host name (like `github.com`) of Chrome's front tab, each with the
+that came to the front, and the host name (like `github.com`) of a browser's front tab, each with the
 time. Never a page title, a full address, anything typed, anything copied or any file name, and
 nothing from private windows. Records older than 90 days are deleted. The file is never sent to any
 model or any service, and Hark's decisions do not read it.
@@ -153,7 +156,10 @@ added only if you tap Add.
 ## Permissions Hark asks for, and why
 - Microphone: to hear you while its key is held. Speech is turned into text on the Mac, so no separate speech permission is asked for.
 - Accessibility: to notice its key, see window titles, and use menus and shortcuts.
-- Automation for Google Chrome: to see and switch tabs.
+- Automation for your browser: to see and switch tabs.
+- Network, for searching on a site you name ("search X on <site>"): Hark fetches that site's home page and its
+  published search description, once, and keeps the result in `~/.config/hark/site-search.json`. Only the site's own
+  address is contacted; what you search for is sent by your browser when it opens the result, never by Hark.
 - Automation for System Events: to change light and dark appearance and lock the screen.
 
 If you find a way to make Hark do something on the Never list, that is a bug worth reporting.

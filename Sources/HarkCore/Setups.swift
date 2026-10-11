@@ -3,25 +3,25 @@ import Foundation
 /// A saved setup is a routine written for the user: one step per app and project folder that
 /// was open when they said "save this setup as ...". Saying its name opens them all again.
 public enum Setups {
-    private static let editors: Set<String> = ["code", "visual studio code"]
-
     /// - Parameters:
     ///   - apps: names of the running apps.
     ///   - editorWindows: titles of the code editor's windows, such as "main.swift — shop-backend".
+    ///   - editorNames: the names of the editor those windows belong to; the first is how it is said.
     ///   - folders: names of the folders Hark can open by name.
-    public static func routine(named name: String, apps: [String], editorWindows: [String], folders: [String]) -> Routine {
-        let projects = openProjects(in: editorWindows, among: folders)
+    public static func routine(named name: String, apps: [String], editorWindows: [String], editorNames: [String] = [], folders: [String]) -> Routine {
+        let projects = editorNames.isEmpty ? [] : openProjects(in: editorWindows, among: folders)
+        let editors = Set(editorNames.map { $0.lowercased() })
         // Opening a project opens the editor too, and by its folder, which a bare "open the
         // editor" could not promise.
         let others = apps.filter { projects.isEmpty || !editors.contains($0.lowercased()) }
-        let steps = projects.map { Step(say: "open the \($0) folder in VS Code") }
+        let steps = projects.map { Step(say: "open the \($0) folder in \(editorNames.first ?? "the editor")") }
             + others.map { Step(say: "open \($0) app") }
         return Routine(name: name, steps: steps)
     }
 
     /// "3 apps and 2 projects", for telling the user what was saved.
     public static func summary(of routine: Routine) -> String {
-        let projects = routine.steps.filter { $0.say?.hasSuffix("folder in VS Code") == true }.count
+        let projects = routine.steps.filter { $0.say?.contains(" folder in ") == true }.count
         let apps = routine.steps.count - projects
         let parts = [count(apps, "app"), count(projects, "project")].compactMap { $0 }
         return parts.isEmpty ? "nothing open" : parts.joined(separator: " and ")

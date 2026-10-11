@@ -52,14 +52,11 @@ private func strippingLead(_ leads: [[String]], from words: [String]) -> [String
     return Array(rest)
 }
 
-/// How speech recognisers commonly write names and numbers, mapped to one spelling.
+/// How speech recognisers commonly write numbers, mapped to one spelling. Names are not listed here: a name said as
+/// two words ("you tube") is joined when the one-word name is known (see `RuleParser.names`), and the other ways to
+/// say an app's name are read from the installed apps.
 private let looseSpellings = phrases([
-    "v s code": "vs code", "versus code": "vs code", "vscode": "vs code",
-    "visual studio code": "vs code", "bs code": "vs code",
-    "git hub": "github", "you tube": "youtube", "g mail": "gmail", "linked in": "linkedin",
-    "chat gpt": "chatgpt", "chat g p t": "chatgpt", "whats app": "whatsapp",
-    "google chrome": "chrome",
-    "x code": "xcode", "i term": "iterm", "post man": "postman", "local host": "localhost",
+    "local host": "localhost",
     "zero": "0", "one": "1", "two": "2", "three": "3", "four": "4", "five": "5",
     "six": "6", "seven": "7", "eight": "8", "nine": "9", "ten": "10",
 ])
@@ -189,9 +186,14 @@ public struct RuleParser: Sendable {
     private let aliases: [Phrase]
     /// "Open a Brave tab" with nothing else said can only mean a new one: the words that can name a browser.
     private let browserWords: Set<String>
+    /// One-word names known now (apps, windows, tabs, sites), lower case. Speech often splits such a name in two.
+    private let compounds: Set<String>
 
-    public init(aliases: [String: String], browserWords: Set<String> = ["browser"]) {
+    public init(aliases: [String: String], browserWords: Set<String> = ["browser"], names: [String] = []) {
         self.browserWords = browserWords
+        compounds = Set(names.map { $0.lowercased() }.filter { name in
+            name.count >= 4 && !name.contains(" ") && name.allSatisfy { $0.isLetter || $0.isNumber }
+        })
         self.aliases = aliases
             .map { spoken, real in
                 Phrase(
@@ -206,11 +208,28 @@ public struct RuleParser: Sendable {
     /// The transcript with the user's own names swapped in ("the arc" becomes "the hark"), for a
     /// reader that does not know those names.
     public func applyingNames(to transcript: String) -> String {
-        replacing(aliases, in: replacing(looseSpellings, in: normalizedWords(transcript))).joined(separator: " ")
+        replacing(aliases, in: joiningCompounds(replacing(looseSpellings, in: normalizedWords(transcript)))).joined(separator: " ")
+    }
+
+    /// "you tube" is "youtube" when a name "youtube" is known; a split name is never joined into one that is not.
+    private func joiningCompounds(_ words: [String]) -> [String] {
+        guard !compounds.isEmpty else { return words }
+        var result: [String] = []
+        var index = 0
+        while index < words.count {
+            if let size = [3, 2].first(where: { index + $0 <= words.count && compounds.contains(words[index..<(index + $0)].joined()) }) {
+                result.append(words[index..<(index + size)].joined())
+                index += size
+            } else {
+                result.append(words[index])
+                index += 1
+            }
+        }
+        return result
     }
 
     public func parse(_ transcript: String) -> Command? {
-        let heard = heardWords(transcript)
+        let heard = joiningCompounds(heardWords(transcript))
         if let number = pickNumber(in: heard) {
             return Command(verb: .pick, query: number, raw: transcript)
         }

@@ -188,11 +188,9 @@ enum MenuSafety {
 }
 
 enum MenuToolApps {
-    private static let aliases = ["vs code": "code", "vscode": "code", "visual studio code": "code"]
-
     @MainActor static func running(named name: String) throws -> NSRunningApplication {
         let wanted = name.trimmingCharacters(in: .whitespaces).lowercased()
-        let target = aliases[wanted] ?? wanted
+        let target = AppNames.canonicalName(wanted).lowercased()
         let apps = NSWorkspace.shared.runningApplications.filter {
             $0.activationPolicy == .regular && $0.localizedName != nil
         }
@@ -359,15 +357,8 @@ enum KeySafety {
         "f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f9", "f10", "f11", "f12",
     ]
 
-    private static let terminals: Set<String> = [
-        "com.apple.Terminal", "com.googlecode.iterm2", "dev.warp.Warp-Stable", "dev.warp.Warp",
-        "net.kovidgoyal.kitty", "org.alacritty", "com.mitchellh.ghostty", "com.github.wez.wezterm",
-        "co.zeit.hyper", "org.tabby",
-    ]
-
     static func isTerminal(_ app: NSRunningApplication) -> Bool {
-        guard let id = app.bundleIdentifier else { return false }
-        return terminals.contains(id)
+        AppNames.isTerminal(bundleID: app.bundleIdentifier)
     }
 }
 

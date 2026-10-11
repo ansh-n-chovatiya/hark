@@ -4,6 +4,20 @@ All notable changes are written here, newest first. Versions follow
 [Semantic Versioning](https://semver.org); while Hark is below 1.0, a minor bump may change
 behaviour.
 
+## 0.2.7 — 2026-10-11
+
+- No browser, app or website is named in Hark's rules any more; they are read from the Mac:
+  - Browsers: any app that opens web addresses and has tabs. Tabs are read in every Chromium-based browser installed
+    (Brave tabs now work), and "open Brave and search ...", "search ... in Brave", a bare "new tab" and the place a new
+    tab opens use the browser you named, the one in front, or your default.
+  - Other ways to say an app's name ("visual studio code", "vs code", "vscode") come from the installed apps; a name the
+    recogniser splits in two ("you tube") is joined when that one-word name is open or installed.
+  - The editor for a project folder is an installed developer app that opens folders (the one running, else used most
+    recently). Setups remember the editor you used.
+  - Terminals are recognised by declaring shell scripts and programs among what they open, so a terminal Hark has never
+    heard of is still protected. Add others as `terminalApps` in the settings file.
+- A terminal in front can be sent "new tab" or "new window", and its own settings, by menu click (no keys).
+
 ## 0.2.6 — 2026-10-11
 
 - Site search no longer uses a built-in list of sites (0.2.5 had one). It reads each site's own search page instead; see

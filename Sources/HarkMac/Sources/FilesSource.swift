@@ -75,8 +75,10 @@ public actor FilesSource: ItemSource {
         isWalking = false
     }
 
+    /// The editor for a project folder, or for code and text when the user has not set an app of their own for
+    /// that kind of file.
     @MainActor private static func editor() -> URL? {
-        NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.microsoft.VSCode")
+        AppNames.preferredEditor()?.url
     }
 
     // macOS files these extensions as MPEG-2 video.

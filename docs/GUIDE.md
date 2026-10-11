@@ -154,7 +154,7 @@ Read [SAFETY.md](../SAFETY.md) for the full list.
 - Apple's Command Line Tools (this gives you the Swift compiler). Install them with
   `xcode-select --install`. Full Xcode is not needed.
 - About 1 GB of free disk space for the speech model
-- Google Chrome and Visual Studio Code, for the browser tab and editor window features. Hark works
+- A Chromium-based browser and a code editor, for the browser tab and editor window features. Hark works
   without them, but those parts will not.
 
 ## Install
@@ -176,7 +176,7 @@ Hark's settings window shows which are on.
 
 - **Microphone**: to hear you while you hold the key. Speech is turned into text on your Mac.
 - **Accessibility**: to notice the key you hold, read window titles, and use menus and shortcuts.
-- **Automation for Google Chrome**: to see and switch your browser tabs.
+- **Automation for your browser**: to see and switch your browser tabs.
 - **Automation for System Events**: to change light and dark appearance and to lock the screen.
 
 ### First run
@@ -320,7 +320,7 @@ Folder layout:
 ## Limits
 
 - English only.
-- Tabs and editor windows work in Google Chrome and Visual Studio Code only.
+- Tabs work in Chromium-based browsers (Chrome, Brave, Edge, Arc and others; Hark finds them on the Mac). Safari and Firefox tabs are not supported yet. Editor windows work in any editor that opens a folder as a project.
 - It is early software and has been used by one person on one Mac.
 - A command with a deletion word in it (delete, erase, wipe, shred, trash, bin, uninstall, format)
   is refused before anything else, unless it is the name of a routine you wrote. Such a routine

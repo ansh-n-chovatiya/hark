@@ -39,20 +39,13 @@ private func optionalApp(in arguments: JSONValue) -> String? {
 }
 
 private func displayName(ofApp name: String) -> String {
-    ["vs code", "visual studio code", "vscode"].contains(name.lowercased()) ? "VS Code" : name
+    name
 }
 
 enum AppLookup {
-    private static let bundleIDs = [
-        "vs code": "com.microsoft.VSCode", "visual studio code": "com.microsoft.VSCode",
-        "vscode": "com.microsoft.VSCode", "code": "com.microsoft.VSCode",
-    ]
-
     @MainActor static func url(forAppNamed name: String) throws -> URL {
         let wanted = name.lowercased()
-        if let id = bundleIDs[wanted], let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: id) {
-            return url
-        }
+        if let url = AppNames.url(forAppNamed: name) { return url }
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         let folders = ["/Applications", "/Applications/Utilities", "/System/Applications",
                        "/System/Applications/Utilities", "\(home)/Applications"]
@@ -69,8 +62,9 @@ enum AppLookup {
         throw SystemToolError("\(name) is not installed.")
     }
 
-    @MainActor static func visualStudioCode() -> URL? {
-        NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.microsoft.VSCode")
+    /// The editor a project folder opens in.
+    @MainActor static func editor() -> URL? {
+        AppNames.preferredEditor()?.url
     }
 }
 
@@ -164,11 +158,11 @@ public struct OpenPathTool: Tool {
         let appName = optionalApp(in: arguments)
         let app = try await MainActor.run { () throws -> URL? in
             if let appName { return try AppLookup.url(forAppNamed: appName) }
-            return isFolder.boolValue ? AppLookup.visualStudioCode() : nil
+            return isFolder.boolValue ? AppLookup.editor() : nil
         }
         let url = URL(fileURLWithPath: path)
         try await open(url, in: app)
-        let place = app == nil ? "" : " in \(appName.map(displayName(ofApp:)) ?? "VS Code")"
+        let place = app == nil ? "" : " in \(appName ?? FileManager.default.displayName(atPath: app?.path ?? "").replacingOccurrences(of: ".app", with: ""))"
         let name = url.lastPathComponent
         return ToolResult(output: "Opened \(name)\(place).", summary: "Opened \(name)\(place)")
     }

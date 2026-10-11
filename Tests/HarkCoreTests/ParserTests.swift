@@ -4,7 +4,8 @@ import Testing
 private let parser = RuleParser(aliases: [
     "the backend": "Shop-backend",
     "standup notes": "~/Projects/standup.md",
-])
+    "vs code": "code",
+], names: ["youtube", "github"])
 
 private func parsed(_ transcript: String) -> Command? {
     parser.parse(transcript)
@@ -91,7 +92,7 @@ func parserMapsBareNumbersToPick(transcript: String, number: String?) {
 
 @Test(arguments: [
     ("the render logs tab", ItemKind.tab, "render logs"),
-    ("the VS Code window for the backend", .window, "vs code shop-backend"),
+    ("the VS Code window for the backend", .window, "code shop-backend"),
     ("open the phase 6 recording file", .file, "phase 6 recording"),
     ("open the downloads folder", .file, "downloads"),
     ("switch to the Slack app", .app, "slack"),
@@ -107,10 +108,10 @@ func parserReadsKindWords(transcript: String, kind: ItemKind, query: String) {
     #expect(parsed("open the pull request in Chrome")?.owner == "chrome")
     #expect(parsed("open the pull request in Chrome")?.query == "pull request")
     #expect(parsed("paste the address from Slack")?.owner == "slack")
-    #expect(parsed("paste the thing I copied from V S Code")?.owner == "vs code")
-    #expect(parsed("paste the thing I copied from V S Code")?.query == "thing")
+    #expect(parsed("paste the thing I copied from VS Code")?.owner == "code")
+    #expect(parsed("paste the thing I copied from VS Code")?.query == "thing")
     #expect(parsed("the relay window in VS Code") == Command(
-        verb: .open, query: "relay", kinds: [.window], owner: "vs code", raw: "the relay window in VS Code"))
+        verb: .open, query: "relay", kinds: [.window], owner: "code", raw: "the relay window in VS Code"))
     #expect(parsed("open sign in")?.owner == nil)
     #expect(parsed("open sign in")?.query == "sign in")
 }
@@ -122,10 +123,6 @@ func parserReadsKindWords(transcript: String, kind: ItemKind, query: String) {
 }
 
 @Test(arguments: [
-    ("switch to V S code", "vs code"),
-    ("switch to versus code", "vs code"),
-    ("Switch to VSCode", "vs code"),
-    ("open visual studio code", "vs code"),
     ("open git hub", "github"),
     ("open you tube", "youtube"),
     ("go to local host", "localhost"),

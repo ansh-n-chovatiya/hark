@@ -108,7 +108,7 @@ scripts/install.sh
 | --- | --- |
 | Microphone | To hear you while the key is held |
 | Accessibility | To notice the key and read window titles |
-| Automation (Chrome, System Events) | To switch browser tabs and change dark mode / lock screen |
+| Automation (your browser, System Events) | To switch browser tabs and change dark mode / lock screen |
 
 > **First launch is slow.** Hark downloads its speech model (about 450 MB) once. It can take a few minutes; until then it uses Apple's built-in listening, which is less accurate with names and accents.
 >
@@ -137,13 +137,13 @@ A model that fails, for example one out of quota, rests for a few minutes instea
 | --- | --- |
 | Hark doesn't react to the key | **System Settings → Privacy & Security → Accessibility**, make sure Hark is on |
 | It can't hear me | Same place, **Microphone** |
-| Tabs aren't found | **Automation → Hark → Google Chrome** must be on. Tabs work in Chrome only |
+| Tabs aren't found | **Automation → Hark → your browser** must be on. Tabs work in browsers built on Chromium (Chrome, Brave, Edge, Arc and the like) |
 | It misheard names | Wait for the speech model download to finish; add your own words in **Settings → Names** |
 | It did the wrong thing | **Settings → History → "This was wrong"**, and tell us |
 | macOS keeps asking for my password | When it asks to use the "Hark Dev" signing key (only while building from source) or the "model-key" Keychain item, choose **Always Allow** so it stops asking |
 | I said it and nothing was typed | Dictation types only into a text box. With none selected, your words are copied: paste with ⌘V |
 
-Hark is early software, English-only, and has so far been used on one Mac. Browser tabs and editor windows work with Google Chrome and Visual Studio Code only.
+Hark is early software, English-only, and has so far been used on one Mac. Browser tabs are read in any Chromium-based browser (Hark finds the browsers on your Mac); Safari and Firefox tabs are not yet supported. Editor windows are found in any code editor that opens a folder as a project.
 
 ## 🧰 For developers
 

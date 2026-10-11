@@ -57,7 +57,8 @@ enum Browsers {
     static func named(_ phrase: String) -> BrowserApp? {
         let words = Set(AppAction.tokens(phrase))
         return all.first { app in
-            let tokens = AppAction.tokens(app.name).filter { $0 != "google" && $0 != "app" }
+            // "Brave" names "Brave Browser": the word "browser" alone is not what tells browsers apart.
+            let tokens = AppAction.tokens(app.name).filter { $0 != "google" && $0 != "app" && $0 != "browser" }
             return !tokens.isEmpty && tokens.allSatisfy(words.contains)
         }
     }

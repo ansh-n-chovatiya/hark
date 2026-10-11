@@ -18,7 +18,7 @@ public actor Pipeline {
     /// What the model and the tools said to each other in the last command that needed a model.
     public private(set) var lastConversation: [ChatMessage] = []
 
-    private let parser: RuleParser
+    private var parser: RuleParser
     private var sources: [any ItemSource]
     private let log: TimingLog
     private let model: (any ChatModel)?
@@ -62,8 +62,9 @@ public actor Pipeline {
     /// How close two scores must be for the items to count as rivals.
     private static let rivalMargin = 0.12
 
-    // macOS calls the app "Code", which nobody says aloud.
-    private static let builtInAliases = ["vs code": "code", "visual studio code": "code"]
+    // macOS calls an app by its own short name ("Code"), which nobody says aloud: the other ways to say an app's
+    // name are read from the installed apps.
+    private static let builtInAliases = AppNames.aliases()
 
     private static let instructions = """
         You are Hark, a voice assistant that controls the user's Mac. You are given what the user \
@@ -121,6 +122,7 @@ public actor Pipeline {
         self.saveRoutine = saveRoutine
         self.announce = announce
         links = config.links
+        AppNames.extraTerminals = Set(config.terminalApps.map { $0.lowercased() })
         parser = RuleParser(aliases: Self.builtInAliases.merging(config.aliases) { _, chosen in chosen }, browserWords: Browsers.nameWords)
         self.sources = sources
         self.log = log
@@ -188,6 +190,19 @@ public actor Pipeline {
             await localModel.warmUp()
         }
         await refreshed
+        await rebuildParser()
+    }
+
+    /// The parser learns which one-word names exist now, so a name the recogniser splits in two is put back together.
+    private func rebuildParser() async {
+        var names = AppNames.installed.flatMap { AppAction.tokens($0.shortName) + AppAction.tokens($0.folderName) }
+        for item in await openItems() {
+            names += AppAction.tokens(item.title)
+            if let host = URL(string: item.payload["url"] ?? "")?.host(), let stem = SiteSearch.stem(host) { names.append(stem) }
+        }
+        parser = RuleParser(
+            aliases: Self.builtInAliases.merging(ownNames) { _, chosen in chosen },
+            browserWords: Browsers.nameWords, names: names)
     }
 
     public func refreshSources() async {
@@ -801,10 +816,16 @@ public actor Pipeline {
             return .notUnderstood("Give the setup a name, like \u{201C}save this setup as morning\u{201D}")
         }
         let open = await openItems()
+        let editorWindows = open.filter { $0.kind == .window && AppNames.isEditor(named: $0.owner ?? "") }
+        let editor = editorWindows.first?.owner
+        let editorNames = editor.map { owner in
+            [AppNames.installed.first { AppAction.tokens($0.shortName) == AppAction.tokens(owner) }?.folderName ?? owner, owner]
+        } ?? []
         let routine = Setups.routine(
             named: name,
             apps: open.filter { $0.kind == .app }.map(\.title),
-            editorWindows: open.filter { $0.kind == .window && $0.owner == "Code" }.map(\.title),
+            editorWindows: editorWindows.map(\.title),
+            editorNames: editorNames,
             folders: knownFolders.map(\.title))
         guard !routine.steps.isEmpty else { return .notUnderstood("Nothing is open to save") }
         if routines.contains(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame }) {
