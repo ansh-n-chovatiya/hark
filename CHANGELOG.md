@@ -4,7 +4,7 @@ All notable changes are written here, newest first. Versions follow
 [Semantic Versioning](https://semver.org); while Hark is below 1.0, a minor bump may change
 behaviour.
 
-## Unreleased
+## 0.3.2 — 2026-10-11
 
 - The Settings window opens in the middle of the screen you are on, every time, and is never taller or wider than the
   usable area, so nothing falls off an edge. It can now be resized.
