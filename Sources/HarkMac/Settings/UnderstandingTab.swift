@@ -6,7 +6,7 @@ struct UnderstandingTab: View {
 
     var body: some View {
         Form {
-            Section {
+            GlassSection {
                 Toggle("Use an AI model for commands Hark\u{2019}s built-in rules cannot settle", isOn: useModel)
             }
             if model.config.useModel {
@@ -21,7 +21,7 @@ struct UnderstandingTab: View {
     }
 
     private var terminal: some View {
-        Section {
+        GlassSection {
             Toggle("Let Hark run terminal commands for me", isOn: Binding(
                 get: { model.config.terminalCommands }, set: { model.setTerminalCommands($0) }))
             HelperText(
@@ -39,7 +39,7 @@ struct UnderstandingTab: View {
     }
 
     private var onlineModel: some View {
-        Section {
+        GlassSection {
             SettingsSelect(
                 label: "Service",
                 options: ModelProvider.all.map { SelectOption(value: Optional($0), title: $0.name) }
@@ -135,7 +135,7 @@ struct UnderstandingTab: View {
 
     /// The AI command-line tool found on this Mac, and which of its models Hark asks.
     private func commandLineTool(_ tool: ModelCLI) -> some View {
-        Section {
+        GlassSection {
             SettingsSelect(
                 label: "Model",
                 options: Self.toolModels(including: model.config.cliModel),
@@ -164,7 +164,7 @@ struct UnderstandingTab: View {
 
     /// The order models are tried in, which are turned on, and which is resting after a failure.
     private var aiTools: some View {
-        Section {
+        GlassSection {
             TimelineView(.periodic(from: .now, by: 5)) { _ in
                 let entries = ModelSetup.entries(for: model.config)
                 VStack(alignment: .leading, spacing: 10) {
@@ -193,7 +193,7 @@ struct UnderstandingTab: View {
     }
 
     private var modelOnThisMac: some View {
-        Section {
+        GlassSection {
             addressField(.onThisMac)
             localModelRow
             localStatus

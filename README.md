@@ -108,7 +108,7 @@ scripts/install.sh
 | --- | --- |
 | Microphone | To hear you while the key is held |
 | Accessibility | To notice the key and read window titles |
-| Automation (your browser, System Events) | To switch browser tabs and change dark mode / lock screen |
+1| Automation (your browser, System Events) | To switch browser tabs and change dark mode / lock screen |
 
 > **First launch is slow.** Hark downloads its speech model (about 450 MB) once. It can take a few minutes; until then it uses Apple's built-in listening, which is less accurate with names and accents.
 >

@@ -4,8 +4,7 @@ struct SettingsContent: View {
     let model: SettingsModel
 
     var body: some View {
-        SettingsTab(section: model.section, model: model)
-            .frame(width: SettingsLayout.width, height: SettingsLayout.height)
+        SettingsShell(model: model)
     }
 }
 

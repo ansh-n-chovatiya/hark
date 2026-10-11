@@ -10,7 +10,7 @@ struct FolderList: View {
     let onChange: ([String]) -> Void
 
     var body: some View {
-        Section {
+        GlassSection {
             if folders.isEmpty {
                 Text(emptyText)
                     .foregroundStyle(.secondary)

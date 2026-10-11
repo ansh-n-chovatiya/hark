@@ -4,6 +4,14 @@ All notable changes are written here, newest first. Versions follow
 [Semantic Versioning](https://semver.org); while Hark is below 1.0, a minor bump may change
 behaviour.
 
+## 0.2.9 — 2026-10-11
+
+- A new look for Settings: a glass sidebar with a colour-coded icon for each section, a large header with a soft glow
+  in the section's colour, frosted cards, status shown as chips (icon and words), and a "Ready to listen / Needs a
+  permission" indicator that takes you to Permissions. Works in light and dark and respects Reduce Motion; the
+  window is wider (900 pt) and text stays at 12 pt or larger.
+- `hark --show-settings <section>` opens the real window with sample data, for taking screenshots.
+
 ## 0.2.8 — 2026-10-11
 
 - Terminal commands. For tasks only the terminal can do ("what is using port 3000", "what changed in this repo"), Hark

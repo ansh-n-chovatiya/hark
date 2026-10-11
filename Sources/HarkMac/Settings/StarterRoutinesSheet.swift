@@ -19,7 +19,7 @@ struct StarterRoutinesSheet: View {
     var body: some View {
         VStack(spacing: 0) {
             Form {
-                Section {
+                GlassSection {
                     ForEach(routines, id: \.name) { routine in
                         StarterRoutineRow(routine: routine, isChosen: isChosen(routine.name))
                     }

@@ -25,7 +25,7 @@ struct GeneralTab: View {
 
     var body: some View {
         Form {
-            Section {
+            GlassSection {
                 holdKeyPicker
                 typingKeyPicker
                 dictationKeyPicker

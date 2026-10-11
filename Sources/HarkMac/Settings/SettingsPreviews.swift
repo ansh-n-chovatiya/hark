@@ -13,8 +13,6 @@ extension SettingsWindow {
                 let model = SettingsModel.sample()
                 model.section = section
                 let window = SettingsWindowController(model: model).window
-                // Off screen the highlight of the chosen tab draws as a solid block that hides its label.
-                window.toolbar?.selectedItemIdentifier = nil
                 let png = try render(window, appearance: appearance)
                 try png.write(to: folder.appending(path: "\(section.rawValue)-\(name).png"))
             }
@@ -122,6 +120,20 @@ extension SettingsWindow {
             throw CocoaError(.fileWriteUnknown)
         }
         return png
+    }
+}
+
+extension SettingsWindow {
+    /// Opens the real window with sample data and returns its window number, so a screenshot of it can be taken
+    /// (`screencapture -l`) with the materials and glass that an off-screen render leaves out.
+    @MainActor public static func showSample(_ section: SettingsSection) -> (controller: AnyObject, number: Int) {
+        let model = SettingsModel.sample()
+        let controller = SettingsWindowController(model: model)
+        if ProcessInfo.processInfo.environment["HARK_APPEARANCE"] == "light" {
+            controller.window.appearance = NSAppearance(named: .aqua)
+        }
+        controller.present(section)
+        return (controller, controller.window.windowNumber)
     }
 }
 

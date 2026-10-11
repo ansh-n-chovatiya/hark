@@ -7,7 +7,7 @@ struct LearningTab: View {
 
     var body: some View {
         Form {
-            Section {
+            GlassSection {
                 Toggle("Learn from how I use my Mac", isOn: Binding(
                     get: { model.config.learns }, set: { model.setLearns($0) }))
                 HelperText(
@@ -15,7 +15,7 @@ struct LearningTab: View {
                         + "offers shortcuts. It all stays on this Mac.")
             }
             if model.config.learns {
-                Section {
+                GlassSection {
                     Toggle("Let the AI model review commands that failed", isOn: Binding(
                         get: { model.config.reviewsFailures }, set: { model.setReviewsFailures($0) }))
                     HelperText(
@@ -27,13 +27,13 @@ struct LearningTab: View {
                 noticed
                 if !model.learned.accepted.isEmpty { learnedForYou }
                 if !model.learned.deadEnds.isEmpty { deadEnds }
-                Section {
+                GlassSection {
                     Button("Delete what Hark has noticed\u{2026}", role: .destructive) { confirmingDelete = true }
                 } footer: {
                     HelperText(text: "Names, pages and routines you already added stay where they are.")
                 }
             } else {
-                Section {
+                GlassSection {
                     Text("Learning is off, so nothing is being noted.").foregroundStyle(.secondary)
                 }
             }
@@ -53,7 +53,7 @@ struct LearningTab: View {
     }
 
     private var findProjects: some View {
-        Section {
+        GlassSection {
             HStack {
                 Button("Find my projects") { Task { await model.findProjects() } }
                     .disabled(model.findingProjects)
@@ -72,7 +72,7 @@ struct LearningTab: View {
     }
 
     private var noticed: some View {
-        Section {
+        GlassSection {
             if model.learned.suggestions.isEmpty {
                 Text("Nothing yet. Hark needs a few days of use to spot habits.").foregroundStyle(.secondary)
             }
@@ -91,7 +91,7 @@ struct LearningTab: View {
     }
 
     private var learnedForYou: some View {
-        Section {
+        GlassSection {
             ForEach(model.learned.accepted) { item in
                 HStack {
                     Image(systemName: SuggestionRow.symbol(for: item.kind)).foregroundStyle(.secondary).frame(width: 24)
@@ -108,7 +108,7 @@ struct LearningTab: View {
     }
 
     private var deadEnds: some View {
-        Section {
+        GlassSection {
             ForEach(model.learned.deadEnds, id: \.phrase) { end in
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {

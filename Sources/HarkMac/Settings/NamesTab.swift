@@ -89,7 +89,7 @@ private struct NamePairs: View {
     private static let removeWidth: CGFloat = 24
 
     var body: some View {
-        Section {
+        GlassSection {
             if rows.isEmpty {
                 Text(words.emptyText)
                     .foregroundStyle(.secondary)

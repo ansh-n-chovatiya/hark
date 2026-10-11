@@ -6,7 +6,7 @@ struct RoutineEditor: View {
     let routine: RoutineDraft
 
     var body: some View {
-        Section {
+        GlassSection {
             SettingsTextField(
                 "Name",
                 text: routine.name,
@@ -25,7 +25,7 @@ struct RoutineEditor: View {
             StepSection(
                 model: model, routine: routine.id, step: step, number: index + 1, count: routine.steps.count)
         }
-        Section {
+        GlassSection {
             VStack(alignment: .leading, spacing: 6) {
                 Button("Add step", systemImage: "plus") {
                     model.editRoutine(routine.id) { $0.steps.append(StepDraft()) }
@@ -35,7 +35,7 @@ struct RoutineEditor: View {
                 }
             }
         }
-        Section {
+        GlassSection {
             Button("Remove this routine", systemImage: "minus.circle") {
                 model.removeRoutine(routine.id)
             }
@@ -64,7 +64,7 @@ private struct StepSection: View {
     }
 
     var body: some View {
-        Section {
+        GlassSection {
             SettingsSelect(
                 label: "Kind",
                 options: [

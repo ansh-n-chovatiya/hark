@@ -38,7 +38,7 @@ struct HistoryTab: View {
             EmptyState(symbol: "checkmark.circle", text: "No problems. Choose All to see every command.")
         } else {
             Form {
-                Section {
+                GlassSection {
                     ForEach(Array(shown.enumerated()), id: \.offset) { _, entry in
                         HistoryRow(entry: entry, report: reportState(of: entry)) {
                             model.reportingRow = ReportKey(entry)

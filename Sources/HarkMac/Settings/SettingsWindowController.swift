@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-@MainActor final class SettingsWindowController: NSObject, NSWindowDelegate, NSToolbarDelegate {
+@MainActor final class SettingsWindowController: NSObject, NSWindowDelegate {
     let window: NSWindow
     private let model: SettingsModel
     private var ownsMainMenu = false
@@ -10,14 +10,12 @@ import SwiftUI
         self.model = model
         window = NSWindow(contentViewController: NSHostingController(rootView: SettingsContent(model: model)))
         super.init()
-        window.styleMask = [.titled, .closable, .miniaturizable]
+        window.styleMask = [.titled, .closable, .miniaturizable, .fullSizeContentView]
         window.isReleasedWhenClosed = false
-        window.toolbarStyle = .preference
-        let toolbar = NSToolbar(identifier: "dev.hark.settings")
-        toolbar.delegate = self
-        toolbar.displayMode = .iconAndLabel
-        toolbar.allowsUserCustomization = false
-        window.toolbar = toolbar
+        // The sidebar and its colour run up under the title bar; the title stays for VoiceOver.
+        window.titlebarAppearsTransparent = true
+        window.titleVisibility = .hidden
+        window.isMovableByWindowBackground = true
         window.delegate = self
         select(model.section)
         window.center()
@@ -39,12 +37,6 @@ import SwiftUI
     func select(_ section: SettingsSection) {
         model.section = section
         window.title = section.title
-        window.toolbar?.selectedItemIdentifier = NSToolbarItem.Identifier(section.rawValue)
-    }
-
-    @objc func selectFromToolbar(_ sender: NSToolbarItem) {
-        guard let section = SettingsSection(rawValue: sender.itemIdentifier.rawValue) else { return }
-        select(section)
     }
 
     @objc func selectFromMenu(_ sender: NSMenuItem) {
@@ -62,37 +54,5 @@ import SwiftUI
             ownsMainMenu = false
         }
         NSApp.setActivationPolicy(.accessory)
-    }
-
-    // MARK: NSToolbarDelegate
-
-    func toolbar(
-        _ toolbar: NSToolbar,
-        itemForItemIdentifier itemIdentifier: NSToolbarItem.Identifier,
-        willBeInsertedIntoToolbar flag: Bool
-    ) -> NSToolbarItem? {
-        guard let section = SettingsSection(rawValue: itemIdentifier.rawValue) else { return nil }
-        let item = NSToolbarItem(itemIdentifier: itemIdentifier)
-        item.label = section.title
-        item.image = NSImage(systemSymbolName: section.symbol, accessibilityDescription: nil)
-        item.target = self
-        item.action = #selector(selectFromToolbar(_:))
-        return item
-    }
-
-    func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        sectionIdentifiers
-    }
-
-    func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        sectionIdentifiers
-    }
-
-    func toolbarSelectableItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        sectionIdentifiers
-    }
-
-    private var sectionIdentifiers: [NSToolbarItem.Identifier] {
-        SettingsSection.allCases.map { NSToolbarItem.Identifier($0.rawValue) }
     }
 }

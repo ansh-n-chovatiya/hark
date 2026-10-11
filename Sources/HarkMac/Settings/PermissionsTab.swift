@@ -5,7 +5,7 @@ struct PermissionsTab: View {
 
     var body: some View {
         Form {
-            Section {
+            GlassSection {
                 ForEach(Permission.allCases, id: \.self) { permission in
                     PermissionRow(permission: permission, status: model.permissionStatuses[permission]) {
                         model.system.openPermissionSettings(permission)
@@ -16,6 +16,20 @@ struct PermissionsTab: View {
                     .font(.body)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+            }
+            GlassSection {
+                HStack(spacing: 14) {
+                    Image(systemName: "lock.fill")
+                        .font(.title2)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 36)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Your voice stays on this Mac")
+                        HelperText(text: "Speech is turned into text here. The audio is never sent anywhere.")
+                    }
+                }
+                .frame(minHeight: 40)
             }
         }
         .formStyle(.grouped)
@@ -36,11 +50,7 @@ private struct PermissionRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: symbol)
-                .font(.title2)
-                .foregroundStyle(.secondary)
-                .frame(width: 30)
-                .accessibilityHidden(true)
+            IconTile(symbol: symbol, theme: SettingsSection.permissions.theme, size: 36)
             VStack(alignment: .leading, spacing: 2) {
                 Text(name)
                 HelperText(text: reason)

@@ -1,8 +1,9 @@
 import SwiftUI
 
 enum SettingsLayout {
-    static let width: CGFloat = 640
-    static let height: CGFloat = 620
+    static let sidebar: CGFloat = 210
+    static let width: CGFloat = 900
+    static let height: CGFloat = 660
     static let fieldWidth: CGFloat = 340
     /// 12 pt, the smallest text in the window. The smaller macOS text styles are not used.
     static let small = Font.callout
@@ -40,10 +41,13 @@ struct StatusLabel: View {
 
     var body: some View {
         Label {
-            Text(text)
+            Text(text).font(.callout.weight(.medium))
         } icon: {
             Image(systemName: symbol).foregroundStyle(tint)
         }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(tint.opacity(0.14), in: Capsule())
         .accessibilityElement(children: .combine)
     }
 }
@@ -53,14 +57,18 @@ struct EmptyState: View {
     let text: String
 
     var body: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 16) {
             Image(systemName: symbol)
-                .font(.largeTitle)
+                .font(.system(size: 34, weight: .medium))
                 .foregroundStyle(.secondary)
+                .frame(width: 84, height: 84)
+                .glassEffect(.regular, in: Circle())
                 .accessibilityHidden(true)
             Text(text)
+                .font(.title3)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
+                .frame(maxWidth: 340)
         }
         .padding(32)
         .frame(maxWidth: .infinity, maxHeight: .infinity)

@@ -30,7 +30,7 @@ private struct RoutineList: View {
 
     var body: some View {
         let starters = model.missingStarterRoutines
-        Section {
+        GlassSection {
             if model.routines.isEmpty && model.removedRoutine == nil {
                 Text("No routines yet. Add one for something you do every day, like opening your project folders.")
                     .foregroundStyle(.secondary)

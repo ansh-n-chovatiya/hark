@@ -693,7 +693,10 @@ func reviewFailures(save: Bool) async -> Int32 {
 }
 
 /// Keeps the pill from `--show-dictation` alive while it is on screen.
-private enum Showing { nonisolated(unsafe) static var indicator: AnyObject? }
+private enum Showing {
+    nonisolated(unsafe) static var indicator: AnyObject?
+    nonisolated(unsafe) static var settings: AnyObject?
+}
 
 func runCommandLine(_ flag: String, _ values: [String]) async -> Int32 {
     switch flag {
@@ -803,6 +806,18 @@ func runCommandLine(_ flag: String, _ values: [String]) async -> Int32 {
             let indicator = DictationIndicator()
             indicator.show(.listening)
             Showing.indicator = indicator
+        }
+        try? await Task.sleep(for: .seconds(seconds))
+        return 0
+    case "--show-settings":
+        // Shows the real settings window with sample data and prints its window number for `screencapture -l`.
+        let section = values.first.flatMap(SettingsSection.init(rawValue:)) ?? .general
+        let seconds = number(after: "--seconds", in: values) ?? 15
+        await MainActor.run {
+            let shown = SettingsWindow.showSample(section)
+            Showing.settings = shown.controller
+            print("window \(shown.number)")
+            fflush(stdout)
         }
         try? await Task.sleep(for: .seconds(seconds))
         return 0
