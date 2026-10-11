@@ -61,6 +61,7 @@ If it isn't sure which of several things you meant, it shows a numbered list. Pr
 | Quick answers | "What is 18 percent of 240" · "How many kilometres is 26 miles" · "Set a 10 minute timer" |
 | Understand itself | "Why did you do that" · "That was wrong" · "Remember that as ..." · "What can I say" |
 | Edit what you dictated | "Scratch that" · "Change their to there" · "Select last word" |
+| Find a file by when you used it | "Open the budget spreadsheet I worked on Tuesday" · "Find my contract PDF from last week" |
 | Focus a project | "Focus on shop" (brings forward its windows and tabs) |
 | Repeat | "Do that again" · "No, the other one" |
 

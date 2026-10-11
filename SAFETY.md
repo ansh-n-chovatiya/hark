@@ -194,4 +194,11 @@ selection. They send arrows, select-all and Delete on a selection, never Return,
 - **Ports** ("what's on 3000") are read from the system's process and socket tables. Nothing is run, and nothing is killed.
 - **Timers** are kept in memory while Hark runs and are announced on screen; they do not survive quitting Hark.
 - **Quick answers** (sums, percentages, unit conversions) are worked out on this Mac with no model.
+- **Finding a file by date** ("the budget spreadsheet I worked on Tuesday") asks Spotlight for names, kinds and last-used
+  dates inside your home folder, never file contents, and opens a file only when exactly one fits. Several are listed by name.
+
+## Decisions (owner delegated them on 2026-10-11)
+
+- Opening the link in a calendar event is allowed, after a yes, because the link came from the user's own calendar entry.
+- Typed snippets are not built: dictation types only words you said, with no exception.
 

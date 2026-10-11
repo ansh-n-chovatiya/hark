@@ -4,6 +4,11 @@ All notable changes are written here, newest first. Versions follow
 [Semantic Versioning](https://semver.org); while Hark is below 1.0, a minor bump may change
 behaviour.
 
+## 0.3.1 — 2026-10-11
+
+- Find a file by when you used it: "open the budget spreadsheet I worked on Tuesday", "find my contract PDF from last week"
+  (Spotlight names, kinds and dates only; one fit opens, several are listed).
+
 ## 0.3.0 — 2026-10-11
 
 - Calendar, read-only: "what's next", "what's my day look like", "am I free at three", and "join my next meeting" (asks first,

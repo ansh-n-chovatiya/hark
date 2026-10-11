@@ -20,3 +20,23 @@ import Testing
         #expect(CalendarCommand.firstLink(in: ["no link here"]) == nil)
     }
 }
+
+@Suite struct DocumentQueryTests {
+    private let calendar: Calendar = { var c = Calendar(identifier: .gregorian); c.timeZone = .gmt; return c }()
+    private func at(_ iso: String) -> Date { ISO8601DateFormatter().date(from: iso)! }
+
+    @Test func nameKindAndDateAreSeparated() {
+        let now = at("2026-10-11T12:00:00Z") // a Sunday
+        let query = DocumentQuery.parse("open the budget spreadsheet I worked on Tuesday", now: now, calendar: calendar)
+        #expect(query?.nameWords == ["budget"])
+        #expect(query?.kind == "public.spreadsheet")
+        #expect(query?.since == at("2026-10-06T00:00:00Z"))
+        #expect(query?.until == at("2026-10-07T00:00:00Z"))
+        #expect(query?.spotlight.contains("kMDItemFSName == \"*budget*\"cd") == true)
+    }
+
+    @Test func aDateIsRequired() {
+        #expect(DocumentQuery.parse("open the budget spreadsheet") == nil)
+        #expect(DocumentQuery.parse("find my contract pdf from last week")?.kind == "com.adobe.pdf")
+    }
+}

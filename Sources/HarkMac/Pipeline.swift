@@ -249,6 +249,20 @@ public actor Pipeline {
 
     private var watching = 0
 
+    /// A file found by name, kind and date. One clear result is opened; several are listed by name. Nil when nothing is
+    /// found, so the words may still mean something else.
+    private func findDocument(_ query: DocumentQuery) async -> Outcome? {
+        let found = DocumentFinder.find(query)
+        guard let best = found.first else { return nil }
+        if dryRun { return .done("Would: open \(best.lastPathComponent)" + (found.count > 1 ? " (\(found.count) found)" : "")) }
+        if found.count == 1 {
+            await MainActor.run { _ = NSWorkspace.shared.open(best) }
+            return .done("Opened \(best.lastPathComponent)")
+        }
+        let names = found.prefix(5).map(\.lastPathComponent).joined(separator: " \u{00B7} ")
+        return .answer("Found \(found.count): \(names). Say the name to open one.")
+    }
+
     /// Calendar questions, from the calendar on this Mac. Read-only; joining a meeting asks first.
     private func handle(_ command: CalendarCommand) async -> Outcome {
         let now = Date()
@@ -425,6 +439,7 @@ public actor Pipeline {
         }
         if nesting == 0, let answer = Calculator.answer(transcript) { return .answer(answer) }
         if nesting == 0, let calendar = CalendarCommand.parse(transcript) { return await handle(calendar) }
+        if nesting == 0, let query = DocumentQuery.parse(transcript), let done = await findDocument(query) { return done }
         if nesting == 0, let timer = TimerCommand.parse(transcript) { return startTimer(timer) }
         if nesting == 0, let project = FocusCommand.project(in: transcript), let done = await focus(on: project) { return done }
         var timings = Timings(
