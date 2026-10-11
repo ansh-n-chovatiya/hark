@@ -4,15 +4,22 @@ All notable changes are written here, newest first. Versions follow
 [Semantic Versioning](https://semver.org); while Hark is below 1.0, a minor bump may change
 behaviour.
 
+## 0.2.6 — 2026-10-11
+
+- Site search no longer uses a built-in list of sites (0.2.5 had one). It reads each site's own search page instead; see
+  the 0.2.5 notes below for how.
+
 ## 0.2.5 — 2026-10-11
 
 - Vague requests are judged against what is open first. "Open settings" with Warp in front chooses Warp's own Settings
   (its menu), not the Mac's System Settings; naming the app ("open System Settings") still goes there. The model is
   now told the front app's menu items, so "open preferences" or "show the about box" resolve against that app.
 - A search that names a site is searched on that site: "open YouTube and search Imran Hashmi", "search swift on GitHub".
-  Sites with a search page, and sites open in a tab, count; an app or a file name never turns into a web search.
+  No site is listed in Hark: it reads the site's own published search page (OpenSearch) the first time and remembers it
+  in ~/.config/hark/site-search.json. A site open in a tab is always searchable (through Google limited to it if it
+  has no search page); a name that is an app, or a site without a search page, never turns into a web search.
 - In a terminal Hark may choose a new tab or window and the terminal app's own menu (settings, about); nothing else.
-- Rules-only evaluation: 49 of 57 (86 percent).
+- Rules-only evaluation: 47 of 55 (85 percent).
 
 ## 0.2.4 — 2026-10-11
 

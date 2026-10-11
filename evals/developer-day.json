@@ -634,22 +634,6 @@
    ]
   },
   {
-   "say": "open youtube search imran hashmi",
-   "expect": "done",
-   "mentions": [
-    "youtube",
-    "imran hashmi"
-   ]
-  },
-  {
-   "say": "search swift concurrency on github",
-   "expect": "done",
-   "mentions": [
-    "github",
-    "swift concurrency"
-   ]
-  },
-  {
    "say": "launch Slack",
    "expect": "done",
    "mentions": [

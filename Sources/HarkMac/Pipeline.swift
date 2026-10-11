@@ -75,7 +75,7 @@ public actor Pipeline {
         - When the user names no app or site ("open settings", "preferences", "new tab", "search for X"), \
         the request is about what is open: first the app in front and its menu items listed below, then \
         its window and tabs, and only then other apps, files or the web. A search that names a site \
-        ("youtube search X") is searched on that site, not on a general search engine.
+        ("<site> search X") is searched on that site, not on a general search engine.
         - A project or repo means a folder or an editor window, not a browser tab.
         - A name that sounds like an app, window or tab in the list means that one. Open a file \
         only when the user asked for a file or folder or said most of its name; never because \
@@ -238,11 +238,9 @@ public actor Pipeline {
         } else if asksToRunAScript(transcript) {
             outcome = .notUnderstood(
                 "Hark runs a script only as a routine. Add it once in Settings under Routines, then say its name.")
-        } else if let site = SiteSearch.request(in: asked.command, openHosts: await openSiteHosts()),
-                  site.address != nil {
+        } else if let site = await siteSearch(asked.command, timings: &timings) {
             // A search that names a site is run on that site: the words said say where, so no model is asked.
-            timings.verb = "siteSearch"
-            outcome = await timed(&timings.actMs) { await searchSite(site) }
+            outcome = site
         } else if let search = WebSearch.request(in: asked.command) {
             // A web search needs no model: the address is built from the words that were said.
             timings.verb = "search"
@@ -732,9 +730,18 @@ public actor Pipeline {
         await openItems().filter { $0.kind == .tab }.compactMap { URL(string: $0.payload["url"] ?? "")?.host() }
     }
 
-    private func searchSite(_ request: SiteSearchRequest) async -> Outcome {
-        guard let address = request.address else { return .notUnderstood("I could not build that search") }
-        if dryRun { return .done("Would: Search \(request.site) for \u{201C}\(request.query)\u{201D} [\(address.absoluteString)]") }
+    /// Nil when the words name no site that can be searched, so the other rules carry on.
+    private func siteSearch(_ transcript: String, timings: inout Timings) async -> Outcome? {
+        guard let request = SiteSearch.request(in: transcript), await !namesAnApp(request.site) else { return nil }
+        let started = clock.now
+        guard let address = await SiteFinder.shared.address(
+            for: request.site, query: request.query, openHosts: await openSiteHosts())
+        else { return nil }
+        timings.verb = "siteSearch"
+        defer { timings.actMs = milliseconds(since: started) }
+        if dryRun {
+            return .done("Would: Search \(request.site) for \u{201C}\(request.query)\u{201D} [\(address.absoluteString)]")
+        }
         do {
             _ = try await OpenAddressTool().call(.object(["url": .string(address.absoluteString)]))
             return .done("Searched \(request.site) for \u{201C}\(request.query)\u{201D}")
