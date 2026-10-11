@@ -265,9 +265,18 @@ public actor Pipeline {
     /// said. Nil when the words are not that kind of command, so the usual path carries on. No model is
     /// involved: the app's own menu bar says what it can do.
     private func appAction(_ transcript: String, timings: inout Timings) async -> Outcome? {
-        guard let request = AppAction.request(in: transcript) else { return nil }
-        // A command the rules already understand ("open Chrome and open a new tab") keeps its own rule.
-        if let verb = parser.parse(transcript)?.verb, verb != .open { return nil }
+        var request: AppActionRequest
+        if let parsed = parser.parse(transcript), parsed.verb == .newTab, !parsed.query.isEmpty,
+           await namesAnApp(parsed.query) {
+            // "Open new Warp tab": the words after "new tab" name an app, not a website, so it is that app's own tab.
+            request = AppActionRequest(app: parsed.query, action: "new tab")
+        } else if let found = AppAction.request(in: transcript) {
+            request = found
+            // A command the rules already understand ("open Chrome and open a new tab") keeps its own rule.
+            if let verb = parser.parse(transcript)?.verb, verb != .open { return nil }
+        } else {
+            return nil
+        }
         // "Open Slack and Linear": the second part is another app, which the usual path handles.
         guard await !namesAnApp(request.action) else { return nil }
         // ... and "open Slack and Linear and Notes": the first thing after "and" is another app.
@@ -295,7 +304,10 @@ public actor Pipeline {
         guard let app = await MainActor.run(body: { try? MenuToolApps.running(named: appName) }) else {
             return .notUnderstood("\(appName) did not finish opening.")
         }
-        guard !KeySafety.isTerminal(app) else { return .notUnderstood("Hark does not choose menu items in a terminal.") }
+        // In a terminal only a new tab or window is opened: a menu click sends no keys, and nothing else is chosen there.
+        guard !KeySafety.isTerminal(app) || Self.opensTabOrWindow(request.action) else {
+            return .notUnderstood("Hark does not choose menu items in a terminal.")
+        }
 
         // A freshly opened app takes a moment to show its menus.
         var entries: [AppMenuBar.Entry] = []
@@ -518,10 +530,22 @@ public actor Pipeline {
         case .none:
             return .none
         case .item(let path):
-            return isGreyed(path) ? .greyedOut(path) : .item(path)
+            guard isGreyed(path) else { return .item(path) }
+            // The best fit is greyed out ("New Agent Tab"): an enabled item that holds every word said
+            // ("New Terminal Tab") is what was meant.
+            let wanted = Set(AppAction.tokens(phrase))
+            let live = paths.filter { !isGreyed($0) && wanted.isSubset(of: Set(AppAction.tokens($0.last ?? ""))) }
+            if live.count == 1, let only = live.first { return .item(only) }
+            return .greyedOut(path)
         case .unsure(let options):
-            if let first = options.first, isGreyed(first) { return .greyedOut(first) }
+            let wanted = Set(AppAction.tokens(phrase))
             let live = options.filter { !isGreyed($0) }
+            // A greyed-out best fit ("New Agent Tab") loses to the one enabled item holding every word said.
+            if let first = options.first, isGreyed(first) {
+                let full = live.filter { wanted.isSubset(of: Set(AppAction.tokens($0.last ?? ""))) }
+                if full.count == 1, let only = full.first { return .item(only) }
+                return .greyedOut(first)
+            }
             if live.count == 1, let only = live.first { return .item(only) }
             return live.isEmpty ? .none : .unsure(live)
         }
@@ -546,10 +570,23 @@ public actor Pipeline {
         return outcome
     }
 
-    private func frontApp() async -> NSRunningApplication? {
+    static func opensTabOrWindow(_ phrase: String) -> Bool {
+        let words = AppAction.tokens(phrase)
+        return words.starts(with: ["new"]) && ["tab", "window"].contains(words.last ?? "")
+    }
+
+    private func frontAppIsNotChrome() async -> Bool {
+        await MainActor.run {
+            guard let app = NSWorkspace.shared.frontmostApplication else { return false }
+            return !(app.bundleIdentifier ?? "").hasPrefix("com.google.Chrome")
+        }
+    }
+
+    /// A terminal is allowed only for a new tab or window: that menu click sends no keys.
+    private func frontApp(allowingTerminal: Bool = false) async -> NSRunningApplication? {
         await MainActor.run {
             guard let app = NSWorkspace.shared.frontmostApplication, app.activationPolicy == .regular,
-                  !HarkSelf.isHark(app), !KeySafety.isTerminal(app)
+                  !HarkSelf.isHark(app), allowingTerminal || !KeySafety.isTerminal(app)
             else { return nil }
             return app
         }
@@ -558,7 +595,8 @@ public actor Pipeline {
     /// `strict` takes only a menu item whose title is what was said, and not when it was said as "open ...".
     private func frontMenuAction(_ transcript: String, strict: Bool) async -> Outcome? {
         guard let request = FrontAction.request(in: transcript), !(strict && request.opensSomething),
-              let app = await frontApp(), let appName = app.localizedName,
+              let app = await frontApp(allowingTerminal: Self.opensTabOrWindow(request.phrase)),
+              let appName = app.localizedName,
               let entries = try? AppMenus.entries(of: app.processIdentifier, appName: appName), !entries.isEmpty
         else { return nil }
         let chosen: [String]
@@ -796,6 +834,9 @@ public actor Pipeline {
         case .closeDuplicates:
             return await timed(&timings.actMs) { await closeDuplicateTabs() }
         case .newTab:
+            // A bare "new tab" belongs to the app in front; only a browser (or nothing it can use) gets a web tab.
+            if command.query.isEmpty, await frontAppIsNotChrome(),
+               let done = await frontMenuAction("new tab", strict: false) { return done }
             return await timed(&timings.actMs) { await openNewTab(command.query) }
         case .save:
             return await saveSetup(named: command.query)

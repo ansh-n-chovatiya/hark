@@ -3,6 +3,11 @@ import Foundation
 public struct AppActionRequest: Sendable, Equatable {
     public var app: String
     public var action: String
+
+    public init(app: String, action: String) {
+        self.app = app
+        self.action = action
+    }
 }
 
 /// "Open Notes and create a new note": open an app, then do something in it. The app lists what it
