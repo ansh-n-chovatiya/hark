@@ -187,6 +187,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let pipeline = Pipeline(
             config: config, sources: Registry.sources(config: config), log: log,
             saveRoutine: { [weak self] routine in await self?.keep(routine) },
+            saveName: { [weak self] said, meaning in await self?.keepName(said, meaning) },
             announce: { [weak self] result in await self?.announce(result) })
         self.pipeline = pipeline
         Task {
@@ -201,6 +202,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         var changed = config
         changed.routines.removeAll { $0.name.caseInsensitiveCompare(routine.name) == .orderedSame }
         changed.routines.append(routine)
+        apply(changed)
+    }
+
+    /// Teaches a name from "remember that as ...".
+    private func keepName(_ said: String, _ meaning: String) {
+        var changed = config
+        changed.aliases[said] = meaning
         apply(changed)
     }
 

@@ -243,6 +243,10 @@ enum ModelLookup: Equatable {
         }
     }
 
+    func setOfflineOnly(_ on: Bool) {
+        update { $0.offlineOnly = on }
+    }
+
     func setTerminalCommands(_ on: Bool) {
         update { $0.terminalCommands = on }
     }

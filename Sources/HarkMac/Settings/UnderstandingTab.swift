@@ -8,6 +8,11 @@ struct UnderstandingTab: View {
         Form {
             GlassSection {
                 Toggle("Use an AI model for commands Hark\u{2019}s built-in rules cannot settle", isOn: useModel)
+                Toggle("Keep everything on this Mac", isOn: Binding(
+                    get: { model.config.offlineOnly }, set: { model.setOfflineOnly($0) }))
+                HelperText(
+                    text: "Hark then uses only built-in rules and a model running on this Mac. Nothing is sent online: "
+                        + "no online model, no AI tool, no fetching a site\u{2019}s search page.")
             }
             if model.config.useModel {
                 onlineModel

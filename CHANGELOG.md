@@ -4,6 +4,17 @@ All notable changes are written here, newest first. Versions follow
 [Semantic Versioning](https://semver.org); while Hark is below 1.0, a minor bump may change
 behaviour.
 
+## 0.2.11 — 2026-10-11
+
+- The brand colour is now saffron (icon, Settings, menu, overlay, banner), replacing violet.
+- Say "why did you do that" for what was heard, which part of Hark decided, what happened and how long it took; "what did
+  you hear"; "that was wrong" (adds it to the problems list); "remember that as <name>" (teaches the last thing you said
+  as a name); "what can I say" (examples filled in from your open apps and folders).
+- A failure now ends with what to do next in plain words (allow it in Permissions, wait and try again, the next model
+  will be used, check the connection).
+- A switch, Settings, Understanding, "Keep everything on this Mac": no online model, no AI tool, no review of failed
+  commands and no fetching of a site's search page.
+
 ## 0.2.10 — 2026-10-11
 
 - One brand colour everywhere. The app icon, the mark and headers in Settings, the selection, toggles and buttons, the

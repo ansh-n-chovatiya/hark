@@ -40,6 +40,9 @@ public actor Pipeline {
     private var pending: Pending?
     private var quietly = false
     private let saveRoutine: (@Sendable (Routine) async -> Void)?
+    /// Teaches a name: what was said, and what it means.
+    private let saveName: (@Sendable (String, String) async -> Void)?
+    private let offlineOnly: Bool
     /// Shows the user the result of something that finished after its command had returned.
     private let announce: (@Sendable (String) async -> Void)?
     private let links: [String: String]
@@ -130,9 +133,12 @@ public actor Pipeline {
     public init(
         config: Config, sources: [any ItemSource], log: TimingLog, dryRun: Bool = false,
         saveRoutine: (@Sendable (Routine) async -> Void)? = nil,
+        saveName: (@Sendable (String, String) async -> Void)? = nil,
         announce: (@Sendable (String) async -> Void)? = nil
     ) {
         self.saveRoutine = saveRoutine
+        self.saveName = saveName
+        offlineOnly = config.offlineOnly
         self.announce = announce
         links = config.links
         AppNames.extraTerminals = Set(config.terminalApps.map { $0.lowercased() })
@@ -209,6 +215,53 @@ public actor Pipeline {
     }
 
     /// The parser learns which one-word names exist now, so a name the recogniser splits in two is put back together.
+    /// "Why did you do that", "that was wrong", "remember that as ...": about the last command, so none of them
+    /// becomes the last command.
+    private func handle(_ meta: MetaCommand) async -> Outcome {
+        switch meta {
+        case .why:
+            guard let last = lastTimings else { return .notUnderstood("There is nothing to explain yet") }
+            return .answer(last.explanation)
+        case .whatHeard:
+            guard let last = lastTimings else { return .notUnderstood("I have not heard anything yet") }
+            return .answer(last.raw.isEmpty ? "I heard nothing." : "I heard \u{201C}\(last.raw)\u{201D}.")
+        case .wrong:
+            guard let last = lastTimings else { return .notUnderstood("There is nothing to mark yet") }
+            WrongLog(url: Paths.wrong).append(.init(
+                at: Date(), heard: last.raw, did: last.summary ?? last.outcome, wanted: ""))
+            return .done("Noted. Open Settings, History to say what you wanted")
+        case .remember(let meaning):
+            guard let last = lastTimings, !last.raw.isEmpty else { return .notUnderstood("There is nothing to rename yet") }
+            guard let saveName else { return .notUnderstood("I cannot save names here") }
+            let said = AppAction.tokens(last.raw).joined(separator: " ")
+            guard !said.isEmpty, AppAction.tokens(said).count <= 4 else {
+                return .notUnderstood("That was too long to remember as one name. Add it under Settings, Names")
+            }
+            if dryRun { return .done("Would: remember \u{201C}\(said)\u{201D} as \u{201C}\(meaning)\u{201D}") }
+            await saveName(said, meaning)
+            return .done("Remembered: \u{201C}\(said)\u{201D} now means \u{201C}\(meaning)\u{201D}")
+        case .help:
+            return .answer(await examples())
+        }
+    }
+
+    /// Things to say, filled in from what is open and known now, so every line works for this user.
+    private func examples() async -> String {
+        let open = await openItems()
+        let apps = open.filter { $0.kind == .app }.map(\.title).filter { !$0.isEmpty }
+        let first = apps.first ?? "an app"
+        let second = apps.dropFirst().first
+        let folder = knownFolders.first?.title
+        var lines = ["Switch to \(first)"]
+        if let second { lines.append("Hide everything except \(second)") }
+        if let folder { lines.append("Open the \(folder) folder") }
+        lines.append("Search for something on a site, like \u{201C}open <site> and search <words>\u{201D}")
+        lines.append("Set the volume to 30 percent")
+        lines.append("Save this setup as morning, then just say morning")
+        lines.append("Why did you do that")
+        return "Try saying: " + lines.joined(separator: " \u{00B7} ")
+    }
+
     private func rebuildParser() async {
         var names = AppNames.installed.flatMap { AppAction.tokens($0.shortName) + AppAction.tokens($0.folderName) }
         for item in await openItems() {
@@ -239,6 +292,7 @@ public actor Pipeline {
 
     /// `nesting` counts the routines this command is a step of.
     private func run(transcript: String, transcribeMs: Double, nesting: Int) async -> Outcome {
+        if nesting == 0, let meta = MetaCommand.parse(transcript) { return await handle(meta) }
         var timings = Timings(
             at: Date(), raw: transcript, verb: nil, outcome: "", transcribeMs: transcribeMs,
             parseMs: 0, matchMs: 0, actMs: 0, totalMs: 0)
@@ -251,7 +305,7 @@ public actor Pipeline {
         timings.parseMs = milliseconds(since: started)
         timings.verb = command?.verb.rawValue
 
-        let outcome: Outcome
+        var outcome: Outcome
         let named = command?.verb == .pick ? nil : Routines.find(in: asked.command, among: routines)
         if let call = named {
             // A routine the user wrote and named is theirs to run, even one that deletes: that is
@@ -292,6 +346,8 @@ public actor Pipeline {
             outcome = await frontFallback(asked.command, timings: &timings) ?? .notUnderstood("I did not catch a command")
         }
 
+        // A failure says what to do next, in words, wherever it is shown.
+        if case .failed(let text) = outcome, let hint = Recovery.hint(for: text) { outcome = .failed(text + " " + hint) }
         timings.totalMs = transcribeMs + milliseconds(since: started)
         timings.outcome = outcome.label
         timings.summary = outcome.shown
@@ -762,7 +818,8 @@ public actor Pipeline {
 
     /// Nil when the words name no site that can be searched, so the other rules carry on.
     private func siteSearch(_ transcript: String, timings: inout Timings) async -> Outcome? {
-        guard let request = SiteSearch.request(in: transcript, browserWords: Browsers.nameWords), await !namesAnApp(request.site) else { return nil }
+        guard !offlineOnly, let request = SiteSearch.request(in: transcript, browserWords: Browsers.nameWords),
+              await !namesAnApp(request.site) else { return nil }
         let started = clock.now
         guard let address = await SiteFinder.shared.address(
             for: request.site, query: request.query, openHosts: await openSiteHosts())

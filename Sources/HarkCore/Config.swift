@@ -46,6 +46,9 @@ public struct Config: Codable, Sendable, Equatable {
     /// Apps to treat as terminals on top of the ones Hark recognises by what they open (shell scripts and
     /// programs): names or bundle ids. Hark sends no keys into a terminal.
     public var terminalApps: [String]
+    /// Keeps everything on this Mac: no online model, no AI tool, no review of failed commands, and no fetching a
+    /// site's search page. Off unless the user turns it on.
+    public var offlineOnly: Bool
     /// Lets Hark run a terminal command for a request the rules cannot settle ("which process is using port 3000").
     /// Every command is shown and asked about first, and runs in a sandbox. On unless the user turns it off.
     public var terminalCommands: Bool
@@ -89,6 +92,7 @@ public struct Config: Codable, Sendable, Equatable {
         dictationKey: String = "",
         learns: Bool = true,
         terminalApps: [String] = [],
+        offlineOnly: Bool = false,
         terminalCommands: Bool = true,
         terminalChanges: Bool = false,
         reviewsFailures: Bool = true,
@@ -114,6 +118,7 @@ public struct Config: Codable, Sendable, Equatable {
         self.dictationKey = dictationKey
         self.learns = learns
         self.terminalApps = terminalApps
+        self.offlineOnly = offlineOnly
         self.terminalCommands = terminalCommands
         self.terminalChanges = terminalChanges
         self.reviewsFailures = reviewsFailures
@@ -144,6 +149,7 @@ public struct Config: Codable, Sendable, Equatable {
         dictationKey = try values.decodeIfPresent(String.self, forKey: .dictationKey) ?? defaults.dictationKey
         learns = try values.decodeIfPresent(Bool.self, forKey: .learns) ?? defaults.learns
         terminalApps = try values.decodeIfPresent([String].self, forKey: .terminalApps) ?? defaults.terminalApps
+        offlineOnly = try values.decodeIfPresent(Bool.self, forKey: .offlineOnly) ?? defaults.offlineOnly
         terminalCommands = try values.decodeIfPresent(Bool.self, forKey: .terminalCommands) ?? defaults.terminalCommands
         terminalChanges = try values.decodeIfPresent(Bool.self, forKey: .terminalChanges) ?? defaults.terminalChanges
         reviewsFailures = try values.decodeIfPresent(Bool.self, forKey: .reviewsFailures) ?? defaults.reviewsFailures

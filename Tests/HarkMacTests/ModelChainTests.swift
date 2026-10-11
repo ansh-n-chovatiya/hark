@@ -265,3 +265,16 @@ import SwiftUI
         #expect(list.map(\.text) == ["b", "still c"])
     }
 }
+
+@Suite struct OfflineOnlyTests {
+    @Test func keepingEverythingOnThisMacRemovesOnlineModelsAndTools() {
+        var config = Config()
+        config.modelURL = "https://models.example.com/v1"
+        config.model = "m"
+        config.modelKey = "k"
+        let online = ModelSetup.entries(for: config, tools: []).map(\.key)
+        #expect(online.contains("online"))
+        config.offlineOnly = true
+        #expect(!ModelSetup.entries(for: config, tools: []).map(\.key).contains("online"))
+    }
+}

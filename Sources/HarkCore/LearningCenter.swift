@@ -195,7 +195,7 @@ public final class LearningCenter: Sendable {
 
     /// The failed commands a model should look at now, or none when review is off or was done lately.
     public func reviewInput(config: Config, now: Date = Date()) -> [String] {
-        guard config.learns, config.reviewsFailures else { return [] }
+        guard config.learns, config.reviewsFailures, !config.offlineOnly else { return [] }
         let state = store.load()
         if let last = state.lastReviewAt, now.timeIntervalSince(last) < Self.reviewEvery { return [] }
         let known = Set(config.aliases.keys.map(Learner.normalize))

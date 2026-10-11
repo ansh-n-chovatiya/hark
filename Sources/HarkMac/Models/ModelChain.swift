@@ -212,10 +212,11 @@ public enum ModelSetup {
             let isLocal = (model as? OpenAIChatModel)?.isLocal == true
             found.append((key, ModelChoice(id: id, label: label, model: model, isStandIn: standIn, needsNetwork: !isLocal)))
         }
-        if let main = OpenAIChatModel(url: config.modelURL, models: config.model, key: config.modelKey) {
+        if let main = OpenAIChatModel(url: config.modelURL, models: config.model, key: config.modelKey),
+           !config.offlineOnly || main.isLocal {
             add("online", "openai:\(config.modelURL)#\(config.model)", main.isLocal ? "Model on this Mac" : "Online model", main, standIn: false)
         }
-        if config.cli != "off" {
+        if config.cli != "off", !config.offlineOnly {
             for tool in tools {
                 add("cli:\(tool.name)", "cli:\(tool.name)", "\(tool.label) (\(config.cliModel.capitalized))",
                     CLIChatModel(tool, model: config.cliModel), standIn: false)
