@@ -179,3 +179,9 @@ completely: with it off the tool is not offered and "run a script" is refused as
   commands in `RunCommandToolTests`.
 - **What it prints stays with you.** The output is shown to you and is never sent back to a model.
 - It runs for at most 20 seconds, with no keyboard input, from your home folder.
+
+## Editing dictation by voice
+
+"Scratch that", "change X to Y" and the cursor words act only on text Hark typed that is still exactly where it was left
+(the text just before the cursor is read and compared first; if it differs, nothing is changed), or on the current
+selection. They send arrows, select-all and Delete on a selection, never Return, and never in a password box or terminal.

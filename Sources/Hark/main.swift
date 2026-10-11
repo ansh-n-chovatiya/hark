@@ -453,7 +453,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     dictationIndicator.show(.error("I could not hear that. Please try again."))
                     return
                 }
-                let text = Dictation.tidy(heard)
+                if let edit = DictationCommand.parse(heard) {
+                    await carryOut(edit)
+                    return
+                }
+                let text = Dictation.tidy(heard, spokenPunctuation: config.spokenPunctuation)
                 guard !text.isEmpty else {
                     dictationIndicator.show(.hidden)
                     return
@@ -462,6 +466,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 menuBar?.setLastDictation(text)
                 do {
                     try await TextTyper.type(text)
+                    TextEditing.typed(text)
                     logger.notice("dictated \(words, privacy: .public) words")
                     dictationIndicator.show(.typed(words))
                 } catch TextTyperError.passwordField {
@@ -477,6 +482,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             } catch {
                 dictationIndicator.show(.error(error.localizedDescription))
             }
+        }
+    }
+
+    /// "Scratch that", "change X to Y", cursor words and "learn the word ...": said alone while dictating.
+    private func carryOut(_ edit: DictationCommand) async {
+        do {
+            let message: String
+            switch edit {
+            case .scratch: message = try await TextEditing.scratch()
+            case .replace(let old, let new): message = try await TextEditing.replace(old: old, new: new)
+            case .select(let move): message = try TextEditing.move(move)
+            case .deleteSelection: message = try TextEditing.deleteSelection()
+            case .learn(let word):
+                var changed = config
+                if !changed.vocabulary.contains(word) { changed.vocabulary.append(word) }
+                apply(changed)
+                message = "Learned \u{201C}\(word)\u{201D}"
+            }
+            dictationIndicator.show(.done(message))
+        } catch {
+            dictationIndicator.show(.error(error.localizedDescription))
         }
     }
 

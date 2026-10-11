@@ -4,6 +4,18 @@ All notable changes are written here, newest first. Versions follow
 [Semantic Versioning](https://semver.org); while Hark is below 1.0, a minor bump may change
 behaviour.
 
+## 0.2.12 — 2026-10-11
+
+- The brand colour is kesri, a deep saffron orange (icon, Settings, menu, overlay, banner).
+- Dictation can be edited by voice. Said alone: "scratch that" removes what Hark just typed; "change their to there" and
+  "correct that to Priya" fix words in it; "select last word", "select line", "select all", "go to the start/end", and
+  "delete selection" (only when something is selected). They act only on text Hark typed that is still right before the
+  cursor (checked first), or on the selection, and never press Return.
+- Spoken punctuation while dictating: "comma", "full stop", "question mark", "exclamation mark", "colon", "semicolon",
+  "open quote ... close quote", "capital x", "all caps x", "no space", and "literal x" to type the word itself. A switch in
+  General turns it off.
+- "Learn the word <name>" adds it to what the speech recogniser expects.
+
 ## 0.2.11 — 2026-10-11
 
 - The brand colour is now saffron (icon, Settings, menu, overlay, banner), replacing violet.

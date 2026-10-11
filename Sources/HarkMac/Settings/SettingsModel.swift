@@ -243,6 +243,10 @@ enum ModelLookup: Equatable {
         }
     }
 
+    func setSpokenPunctuation(_ on: Bool) {
+        update { $0.spokenPunctuation = on }
+    }
+
     func setOfflineOnly(_ on: Bool) {
         update { $0.offlineOnly = on }
     }

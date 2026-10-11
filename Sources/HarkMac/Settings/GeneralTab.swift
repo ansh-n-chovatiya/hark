@@ -78,6 +78,9 @@ struct GeneralTab: View {
 
     private var loginToggle: some View {
         VStack(alignment: .leading, spacing: 6) {
+            Toggle("Say punctuation while dictating", isOn: Binding(
+                get: { model.config.spokenPunctuation }, set: { model.setSpokenPunctuation($0) }))
+            HelperText(text: "\u{201C}Hello comma world full stop\u{201D} types \u{201C}Hello, world.\u{201D} Also: question mark, capital, all caps, no space.")
             Toggle("Start Hark when you log in", isOn: loginItem)
             if let problem = model.loginItemProblem {
                 ProblemText(text: problem)

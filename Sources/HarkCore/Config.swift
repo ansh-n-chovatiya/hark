@@ -49,6 +49,10 @@ public struct Config: Codable, Sendable, Equatable {
     /// Keeps everything on this Mac: no online model, no AI tool, no review of failed commands, and no fetching a
     /// site's search page. Off unless the user turns it on.
     public var offlineOnly: Bool
+    /// Spoken punctuation in dictation ("comma", "full stop", "question mark") and casing words ("capital", "all caps").
+    public var spokenPunctuation: Bool
+    /// Words and names the speech recogniser should expect, added by voice ("learn the word ...") or by hand.
+    public var vocabulary: [String]
     /// Lets Hark run a terminal command for a request the rules cannot settle ("which process is using port 3000").
     /// Every command is shown and asked about first, and runs in a sandbox. On unless the user turns it off.
     public var terminalCommands: Bool
@@ -93,6 +97,8 @@ public struct Config: Codable, Sendable, Equatable {
         learns: Bool = true,
         terminalApps: [String] = [],
         offlineOnly: Bool = false,
+        spokenPunctuation: Bool = true,
+        vocabulary: [String] = [],
         terminalCommands: Bool = true,
         terminalChanges: Bool = false,
         reviewsFailures: Bool = true,
@@ -119,6 +125,8 @@ public struct Config: Codable, Sendable, Equatable {
         self.learns = learns
         self.terminalApps = terminalApps
         self.offlineOnly = offlineOnly
+        self.spokenPunctuation = spokenPunctuation
+        self.vocabulary = vocabulary
         self.terminalCommands = terminalCommands
         self.terminalChanges = terminalChanges
         self.reviewsFailures = reviewsFailures
@@ -150,6 +158,8 @@ public struct Config: Codable, Sendable, Equatable {
         learns = try values.decodeIfPresent(Bool.self, forKey: .learns) ?? defaults.learns
         terminalApps = try values.decodeIfPresent([String].self, forKey: .terminalApps) ?? defaults.terminalApps
         offlineOnly = try values.decodeIfPresent(Bool.self, forKey: .offlineOnly) ?? defaults.offlineOnly
+        spokenPunctuation = try values.decodeIfPresent(Bool.self, forKey: .spokenPunctuation) ?? defaults.spokenPunctuation
+        vocabulary = try values.decodeIfPresent([String].self, forKey: .vocabulary) ?? defaults.vocabulary
         terminalCommands = try values.decodeIfPresent(Bool.self, forKey: .terminalCommands) ?? defaults.terminalCommands
         terminalChanges = try values.decodeIfPresent(Bool.self, forKey: .terminalChanges) ?? defaults.terminalChanges
         reviewsFailures = try values.decodeIfPresent(Bool.self, forKey: .reviewsFailures) ?? defaults.reviewsFailures

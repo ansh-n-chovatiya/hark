@@ -11,8 +11,8 @@ image.lockFocus()
 let body = NSRect(x: 100, y: 100, width: 824, height: 824)
 let shape = NSBezierPath(roundedRect: body, xRadius: 186, yRadius: 186)
 NSGradient(
-    starting: NSColor(calibratedRed: 0.94, green: 0.64, blue: 0.22, alpha: 1),
-    ending: NSColor(calibratedRed: 0.76, green: 0.40, blue: 0.08, alpha: 1)
+    starting: NSColor(calibratedRed: 1.0, green: 0.50, blue: 0.15, alpha: 1),
+    ending: NSColor(calibratedRed: 0.90, green: 0.30, blue: 0.07, alpha: 1)
 )?.draw(in: shape, angle: -90)
 
 // Bars of a waveform, tallest in the middle, like the symbol in the menu bar.

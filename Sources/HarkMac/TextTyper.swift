@@ -50,7 +50,7 @@ public enum TextTyper {
 
     /// The element that has the keyboard. The app in front is asked first: asking the whole system often fails
     /// (error -25204, "cannot complete") even when the permission is granted, while asking the app works.
-    private static func focusedElement() -> AXUIElement? {
+    static func focusedElement() -> AXUIElement? {
         if let app = NSWorkspace.shared.frontmostApplication {
             var found: CFTypeRef?
             let element = AXUIElementCreateApplication(app.processIdentifier)
@@ -93,7 +93,7 @@ public enum TextTyper {
     }
 
     /// Refuses a focused password box, and an app with nothing focused to type into.
-    private static func checkFocus() throws {
+    static func checkFocus() throws {
         guard let ref = focusedElement() else {
             // A terminal with nothing reported as focused still has a prompt; its letters can only land there.
             if let app = NSWorkspace.shared.frontmostApplication, KeySafety.isTerminal(app) { return }

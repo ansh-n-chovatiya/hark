@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 public enum DictationState: Sendable, Equatable {
-    case hidden, listening, handsFree, typing, typed(Int), copied(Int), error(String)
+    case hidden, listening, handsFree, typing, typed(Int), copied(Int), done(String), error(String)
 }
 
 /// A small pill that says dictation is on, with a waveform that follows the voice and a cancel
@@ -77,7 +77,7 @@ public enum DictationState: Sendable, Equatable {
             panel.orderFrontRegardless()
         }
         switch state {
-        case .typed: hide(after: Self.doneStay)
+        case .typed, .done: hide(after: Self.doneStay)
         case .copied: hide(after: Self.copiedStay)
         case .error: hide(after: Self.errorStay)
         default: break
@@ -183,6 +183,10 @@ struct DictationPill: View {
             Image(systemName: "checkmark.circle.fill").font(.system(size: 16)).foregroundStyle(.green)
                 .accessibilityHidden(true)
             label("Typed \(words) \(words == 1 ? "word" : "words")")
+        case .done(let message):
+            Image(systemName: "checkmark.circle.fill").font(.system(size: 16)).foregroundStyle(.green)
+                .accessibilityHidden(true)
+            label(message).frame(maxWidth: 260, alignment: .leading).padding(.vertical, 8)
         case .copied(let words):
             Image(systemName: "doc.on.clipboard.fill").font(.system(size: 15)).foregroundStyle(.white.opacity(0.9))
                 .accessibilityHidden(true)

@@ -43,6 +43,7 @@ public actor Pipeline {
     /// Teaches a name: what was said, and what it means.
     private let saveName: (@Sendable (String, String) async -> Void)?
     private let offlineOnly: Bool
+    private let extraWords: [String]
     /// Shows the user the result of something that finished after its command had returned.
     private let announce: (@Sendable (String) async -> Void)?
     private let links: [String: String]
@@ -139,6 +140,7 @@ public actor Pipeline {
         self.saveRoutine = saveRoutine
         self.saveName = saveName
         offlineOnly = config.offlineOnly
+        extraWords = config.vocabulary
         self.announce = announce
         links = config.links
         AppNames.extraTerminals = Set(config.terminalApps.map { $0.lowercased() })
@@ -283,7 +285,7 @@ public actor Pipeline {
 
     /// The names worth telling the speech recogniser to expect: apps, windows and tabs now open.
     public func vocabulary() async -> [String] {
-        Array(Set(await openItems().map(\.title)))
+        Array(Set(await openItems().map(\.title) + extraWords))
     }
 
     public func run(transcript: String, transcribeMs: Double) async -> Outcome {
