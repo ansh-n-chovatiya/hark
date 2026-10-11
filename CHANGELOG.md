@@ -4,6 +4,10 @@ All notable changes are written here, newest first. Versions follow
 [Semantic Versioning](https://semver.org); while Hark is below 1.0, a minor bump may change
 behaviour.
 
+## 0.2.13 — 2026-10-11
+
+- Every text box in Settings now has the same fill, edge and height as the select boxes (and a kesri edge when focused).
+
 ## 0.2.12 — 2026-10-11
 
 - The brand colour is kesri, a deep saffron orange (icon, Settings, menu, overlay, banner).

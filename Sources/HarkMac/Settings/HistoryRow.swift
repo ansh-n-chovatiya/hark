@@ -138,7 +138,7 @@ private struct ReportField: View {
             Text("What did you want?")
             TextField("What did you want?", text: $wanted, prompt: Text("open the other report"))
                 .labelsHidden()
-                .textFieldStyle(.roundedBorder)
+                .modifier(HarkPlainField())
                 .focused($isFocused)
                 .onSubmit { onSave(wanted) }
             Button("Save") { onSave(wanted) }

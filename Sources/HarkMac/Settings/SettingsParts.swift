@@ -88,3 +88,29 @@ enum RowBinding {
             })
     }
 }
+
+/// Every text box looks like the select box: the same fill, edge and height, so a form reads as one set of controls.
+struct HarkField: ViewModifier {
+    @FocusState.Binding var focused: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .textFieldStyle(.plain)
+            .padding(.horizontal, 10)
+            .frame(minHeight: 28)
+            .background(RoundedRectangle(cornerRadius: 7).fill(Color(nsColor: .controlBackgroundColor)))
+            .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(focused ? HarkBrand.accent : Color(nsColor: .separatorColor), lineWidth: focused ? 1.5 : 1))
+    }
+}
+
+/// The same look for a box whose focus is not tracked.
+struct HarkPlainField: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .textFieldStyle(.plain)
+            .padding(.horizontal, 10)
+            .frame(minHeight: 28)
+            .background(RoundedRectangle(cornerRadius: 7).fill(Color(nsColor: .controlBackgroundColor)))
+            .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(Color(nsColor: .separatorColor)))
+    }
+}

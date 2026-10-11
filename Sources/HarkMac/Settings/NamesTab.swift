@@ -149,7 +149,7 @@ private struct NamePairs: View {
                 .help(words.removeTitle)
             }
             .labelsHidden()
-            .textFieldStyle(.roundedBorder)
+            .modifier(HarkPlainField())
             .onSubmit { onFinish(id) }
             if let problem = row.wrappedValue.problem {
                 ProblemText(text: problem)

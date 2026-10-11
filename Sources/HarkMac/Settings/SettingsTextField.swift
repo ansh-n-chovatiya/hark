@@ -43,10 +43,10 @@ struct SettingsTextField: View {
                 HStack(spacing: 6) {
                     field
                         .labelsHidden()
-                        .textFieldStyle(.roundedBorder)
                         .multilineTextAlignment(.leading)
                         .font(isCode ? .body.monospaced() : nil)
                         .focused($isFocused)
+                        .modifier(HarkField(focused: $isFocused))
                         .onSubmit(commit)
                     if isSecret {
                         revealButton
