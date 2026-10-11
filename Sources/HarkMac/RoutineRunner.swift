@@ -17,9 +17,9 @@ enum RoutineRunner {
 
     /// Runs one shell step, once or once for each project, and returns its line for the user.
     /// Throws a `RoutineError` saying why as soon as a command fails or takes too long.
-    static func run(_ shell: String, timeout: Double, argument: String?, repos: [String]) async throws -> String {
+    static func run(_ shell: String, timeout: Double, argument: String?, repos: [String], here: String? = nil) async throws -> String {
         var outputs: [(label: String?, line: String)] = []
-        for command in Routines.commands(for: shell, argument: argument, repos: repos) {
+        for command in Routines.commands(for: shell, argument: argument, repos: repos, here: here) {
             let place = command.label.map { "in \($0), " } ?? ""
             let finished = try await launch(command, timeout: .seconds(timeout))
             let line = Routines.lastLine(of: finished.output)

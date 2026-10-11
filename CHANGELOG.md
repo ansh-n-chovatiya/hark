@@ -4,6 +4,13 @@ All notable changes are written here, newest first. Versions follow
 [Semantic Versioning](https://semver.org); while Hark is below 1.0, a minor bump may change
 behaviour.
 
+## 0.2.19 — 2026-10-11
+
+- Local servers, answered from the system's own tables with no terminal: "what's on 3000", "what's running", "open localhost
+  5173" (switches to the tab if one is open), and "tell me when 3000 is up" (watches for up to 30 minutes).
+- Routines can use `{here}`: the project folder of the window in front (one of your listed folders whose name is in the
+  window title). A routine that uses it says so when no single project fits.
+
 ## 0.2.18 — 2026-10-11
 
 - Buttons in Settings are clear brand-edged pills that fill when pressed (they were pale text on a faint box).

@@ -45,6 +45,9 @@ public enum Routines {
 
     static let argumentMark = "{arg}"
     static let repoMark = "{repo}"
+    /// The project folder of the window in front, found when the routine runs.
+    public static let hereMark = "{here}"
+    static let hereVariable = "HARK_HERE"
     static let argumentVariable = "HARK_ARG"
     static let repoVariable = "HARK_REPO"
 
@@ -109,6 +112,11 @@ public enum Routines {
         }
     }
 
+    /// Whether the routine uses the project in front.
+    public static func usesHere(_ routine: Routine) -> Bool {
+        shellSteps(of: routine).contains { $0.contains(hereMark) }
+    }
+
     public static func needsYes(_ call: RoutineCall) -> Bool {
         call.routine.steps.contains(where: \.destructive)
     }
@@ -136,14 +144,20 @@ public enum Routines {
     }
 
     /// The commands one shell step becomes: one, or one for each project when it uses `{repo}`.
-    public static func commands(for shell: String, argument: String?, repos: [String]) -> [ShellCommand] {
+    public static func commands(for shell: String, argument: String?, repos: [String], here: String? = nil) -> [ShellCommand] {
         var text = shell
         var environment: [String: String] = [:]
+        if shell.contains(hereMark) {
+            text = text.replacingOccurrences(of: hereMark, with: reference(to: hereVariable))
+            environment[hereVariable] = here ?? ""
+        }
         if shell.contains(argumentMark) {
             text = text.replacingOccurrences(of: argumentMark, with: reference(to: argumentVariable))
             environment[argumentVariable] = argument ?? ""
         }
-        guard shell.contains(repoMark) else { return [ShellCommand(text: text, environment: environment, label: nil)] }
+        guard shell.contains(repoMark) else {
+            return [ShellCommand(text: text, environment: environment, label: here.map { URL(fileURLWithPath: $0).lastPathComponent })]
+        }
         text = text.replacingOccurrences(of: repoMark, with: reference(to: repoVariable))
         return repos.map { repo in
             let path = NSString(string: repo).expandingTildeInPath

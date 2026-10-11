@@ -247,6 +247,53 @@ public actor Pipeline {
         }
     }
 
+    private var watching = 0
+
+    /// Local servers, from the system's own tables: nothing is run.
+    private func handle(_ command: PortCommand) async -> Outcome {
+        switch command {
+        case .whatsOn(let port):
+            return .answer(Ports.describe(port))
+        case .open(let port):
+            let tab = await openItems().first { item in
+                guard item.kind == .tab, let host = URL(string: item.payload["url"] ?? "") else { return false }
+                return (host.host() == "localhost" || host.host() == "127.0.0.1") && host.port == port
+            }
+            if let tab { return await act(.open, on: tab, asking: false) }
+            guard let address = URL(string: "http://localhost:\(port)") else { return .failed("That is not a port") }
+            if dryRun { return .done("Would: Open \(address.absoluteString)") }
+            do {
+                try await Browser.openNewTab(address)
+                return .done("Opened localhost:\(port)")
+            } catch {
+                return .failed(error.localizedDescription)
+            }
+        case .tellWhenUp(let port):
+            if Ports.isListening(port) { return .done("Port \(port) is already up") }
+            guard watching < 3 else { return .notUnderstood("Already watching three things. Wait for one to finish") }
+            if dryRun { return .done("Would: tell you when port \(port) is up (for up to 30 minutes)") }
+            watching += 1
+            let announce = announce
+            Task { [self] in
+                var waited = 0
+                var message = "Port \(port) did not come up in 30 minutes"
+                while waited < 1800 {
+                    try? await Task.sleep(for: .seconds(waited < 60 ? 2 : 10))
+                    waited += waited < 60 ? 2 : 10
+                    if Ports.isListening(port) {
+                        message = "Port \(port) is up"
+                        break
+                    }
+                }
+                stoppedWatching()
+                await announce?(message)
+            }
+            return .done("Watching port \(port). I will tell you when it is up")
+        }
+    }
+
+    private func stoppedWatching() { watching = max(0, watching - 1) }
+
     /// Things to say, filled in from what is open and known now, so every line works for this user.
     private func examples() async -> String {
         let open = await openItems()
@@ -295,6 +342,9 @@ public actor Pipeline {
     /// `nesting` counts the routines this command is a step of.
     private func run(transcript: String, transcribeMs: Double, nesting: Int) async -> Outcome {
         if nesting == 0, let meta = MetaCommand.parse(transcript) { return await handle(meta) }
+        if nesting == 0, Routines.find(in: transcript, among: routines) == nil, let port = PortCommand.parse(transcript) {
+            return await handle(port)
+        }
         var timings = Timings(
             at: Date(), raw: transcript, verb: nil, outcome: "", transcribeMs: transcribeMs,
             parseMs: 0, matchMs: 0, actMs: 0, totalMs: 0)
@@ -945,13 +995,20 @@ public actor Pipeline {
         let name = call.routine.name
         if dryRun { return .done(Routines.dryRunText(for: call, repos: repos)) }
         var lastLine: String?
+        var here: String?
+        if Routines.usesHere(call.routine) {
+            here = await frontProject()
+            guard here != nil else {
+                return .failed("\(name) works on the project in front. Bring a window of that project to the front first.")
+            }
+        }
         for (index, step) in call.routine.steps.enumerated() {
             do {
                 if let said = step.say {
                     try await carryOut(said: said, nesting: nesting + 1)
                 } else if let shell = step.shell {
                     lastLine = try await RoutineRunner.run(
-                        shell, timeout: step.timeout ?? Routines.defaultTimeout, argument: call.argument, repos: repos)
+                        shell, timeout: step.timeout ?? Routines.defaultTimeout, argument: call.argument, repos: repos, here: here)
                 }
             } catch {
                 return .failed(Routines.stopped(name: name, step: index + 1, because: error.localizedDescription))
@@ -960,6 +1017,31 @@ public actor Pipeline {
         let result = Routines.result(name: name, line: lastLine)
         // A routine that printed something was asked a question; one that printed nothing just did its job.
         return lastLine == nil ? .done(result) : .answer(result)
+    }
+
+    /// The project folder of the window in front: one of the folders Hark knows, whose name is in the window's title. Nil
+    /// unless exactly one folder fits, so a routine never runs in a guess.
+    private func frontProject() async -> String? {
+        let windows = await openItems().filter { $0.kind == .window }
+        guard let front = windows.filter({ $0.lastUsed != nil }).max(by: { ($0.lastUsed ?? .distantPast) < ($1.lastUsed ?? .distantPast) })
+        else { return nil }
+        let title = AppAction.tokens(front.title)
+        var candidates: [(name: String, path: String)] = repos.map { path in
+            let expanded = NSString(string: path).expandingTildeInPath
+            return ((expanded as NSString).lastPathComponent, expanded)
+        }
+        for folder in knownFolders { if let path = folder.payload["path"] { candidates.append((folder.title, path)) } }
+        let fits = candidates.filter { candidate in
+            let words = AppAction.tokens(candidate.name)
+            return !words.isEmpty && title.contains(words.joined(separator: " ")) || (!words.isEmpty && containsRun(title, words))
+        }
+        let paths = Set(fits.map(\.path))
+        return paths.count == 1 ? paths.first : nil
+    }
+
+    private func containsRun(_ words: [String], _ run: [String]) -> Bool {
+        guard run.count <= words.count else { return false }
+        return (0...(words.count - run.count)).contains { Array(words[$0..<($0 + run.count)]) == run }
     }
 
     private func carryOut(said words: String, nesting: Int) async throws {
