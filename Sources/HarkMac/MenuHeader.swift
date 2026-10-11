@@ -48,15 +48,16 @@ struct MenuHeaderView: View {
 
     private func statusRow(needsAttention: Bool) -> some View {
         HStack(alignment: .center, spacing: 10) {
-            Image(systemName: needsAttention ? "exclamationmark.triangle.fill" : "waveform")
-                .font(.body.weight(.semibold))
-                .foregroundStyle(needsAttention ? Color.orange : HarkBrand.accent)
-                .frame(width: 28, height: 28)
-                .background(
-                    RoundedRectangle(cornerRadius: 7)
-                        .fill((needsAttention ? Color.orange : HarkBrand.accent).opacity(0.16))
-                )
-                .accessibilityHidden(true)
+            if needsAttention {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(Color.orange)
+                    .frame(width: 34, height: 34)
+                    .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.orange.opacity(0.16)))
+                    .accessibilityHidden(true)
+            } else {
+                HarkMark(size: 34)
+            }
             Text(state.status)
                 .font(.body)
                 .foregroundStyle(.primary)

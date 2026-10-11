@@ -60,17 +60,7 @@ private struct Sidebar: View {
 
     private var brand: some View {
         HStack(spacing: 10) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 11, style: .continuous)
-                    .fill(HarkBrand.theme.gradient)
-                    .overlay { RoundedRectangle(cornerRadius: 11, style: .continuous).strokeBorder(.white.opacity(0.3), lineWidth: 0.75) }
-                Image(systemName: "waveform")
-                    .font(.system(size: 17, weight: .bold))
-                    .foregroundStyle(.white)
-            }
-            .frame(width: 38, height: 38)
-            .shadow(color: HarkBrand.light.opacity(0.5), radius: 9, y: 3)
-            .accessibilityHidden(true)
+            HarkMark(size: 38)
             VStack(alignment: .leading, spacing: 1) {
                 Text("Hark").font(.system(size: 19, weight: .bold, design: .rounded))
                 Text("Version \(Self.version)").font(.callout).foregroundStyle(.secondary)

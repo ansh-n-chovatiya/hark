@@ -4,6 +4,10 @@ All notable changes are written here, newest first. Versions follow
 [Semantic Versioning](https://semver.org); while Hark is below 1.0, a minor bump may change
 behaviour.
 
+## 0.2.17 — 2026-10-11
+
+- The menu-bar menu shows the same app icon as the Dock and Settings (one HarkMark view used in all of them).
+
 ## 0.2.16 — 2026-10-11
 
 - Back to the original deep-blue app icon, used as the one brand colour across Settings, the menu and the overlay.

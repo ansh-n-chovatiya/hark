@@ -166,3 +166,23 @@ extension GlassSection where Header == EmptyView {
         self.init(content: content, header: { EmptyView() }, footer: footer)
     }
 }
+
+/// Hark's app icon, drawn in the app: the brand gradient with the white waveform, at any size. The menu, Settings and the
+/// overlay all use this one mark so they match the icon in the Dock.
+struct HarkMark: View {
+    var size: CGFloat = 38
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: size * 0.29, style: .continuous)
+                .fill(HarkBrand.theme.gradient)
+                .overlay { RoundedRectangle(cornerRadius: size * 0.29, style: .continuous).strokeBorder(.white.opacity(0.3), lineWidth: 0.75) }
+            Image(systemName: "waveform")
+                .font(.system(size: size * 0.46, weight: .bold))
+                .foregroundStyle(.white)
+        }
+        .frame(width: size, height: size)
+        .shadow(color: HarkBrand.light.opacity(0.45), radius: size * 0.22, y: size * 0.08)
+        .accessibilityHidden(true)
+    }
+}
