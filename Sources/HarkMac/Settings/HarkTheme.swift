@@ -12,18 +12,20 @@ struct SectionTheme {
     }
 }
 
+/// Hark's one brand colour: the violet-to-indigo of the app icon. It is the accent everywhere in the app (selection,
+/// toggles, buttons, headers), so the icon, the menu bar menu, the overlay and Settings read as one product. Green,
+/// orange and red are kept for status and always come with an icon and words.
+enum HarkBrand {
+    static let light = Color(red: 0.49, green: 0.36, blue: 0.98)
+    static let deep = Color(red: 0.26, green: 0.22, blue: 0.79)
+    /// For text, symbols and selection: readable on both light and dark windows.
+    static let accent = Color(red: 0.43, green: 0.34, blue: 0.96)
+    static let theme = SectionTheme(top: light, bottom: deep)
+}
+
 extension SettingsSection {
-    var theme: SectionTheme {
-        switch self {
-        case .general: SectionTheme(top: Color(red: 0.37, green: 0.36, blue: 0.90), bottom: Color(red: 0.04, green: 0.52, blue: 1.0))
-        case .permissions: SectionTheme(top: Color(red: 0.19, green: 0.82, blue: 0.35), bottom: Color(red: 0.25, green: 0.78, blue: 0.88))
-        case .model: SectionTheme(top: Color(red: 0.75, green: 0.35, blue: 0.95), bottom: Color(red: 0.37, green: 0.36, blue: 0.90))
-        case .names: SectionTheme(top: Color(red: 1.0, green: 0.22, blue: 0.37), bottom: Color(red: 1.0, green: 0.62, blue: 0.04))
-        case .routines: SectionTheme(top: Color(red: 1.0, green: 0.62, blue: 0.04), bottom: Color(red: 1.0, green: 0.35, blue: 0.20))
-        case .learning: SectionTheme(top: Color(red: 1.0, green: 0.84, blue: 0.04), bottom: Color(red: 1.0, green: 0.55, blue: 0.10))
-        case .history: SectionTheme(top: Color(red: 0.04, green: 0.52, blue: 1.0), bottom: Color(red: 0.39, green: 0.82, blue: 1.0))
-        }
-    }
+    /// Every section wears the same colours; only its symbol and title differ.
+    var theme: SectionTheme { HarkBrand.theme }
 
     /// One plain line under the title.
     var subtitle: String {
@@ -45,20 +47,22 @@ struct IconTile: View {
     let theme: SectionTheme
     var size: CGFloat = 30
     var glow = false
+    /// A calm glass tile for what is not chosen: no colour until it is.
+    var quiet = false
 
     var body: some View {
         RoundedRectangle(cornerRadius: size * 0.28, style: .continuous)
-            .fill(theme.gradient)
+            .fill(quiet ? AnyShapeStyle(.thinMaterial) : AnyShapeStyle(theme.gradient))
             .frame(width: size, height: size)
             .overlay {
                 RoundedRectangle(cornerRadius: size * 0.28, style: .continuous)
-                    .strokeBorder(.white.opacity(0.28), lineWidth: 0.75)
+                    .strokeBorder(.white.opacity(quiet ? 0.14 : 0.28), lineWidth: 0.75)
             }
             .overlay {
                 Image(systemName: symbol)
                     .font(.system(size: size * 0.5, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .shadow(color: .black.opacity(0.18), radius: 1, y: 1)
+                    .foregroundStyle(quiet ? AnyShapeStyle(.primary.opacity(0.85)) : AnyShapeStyle(.white))
+                    .shadow(color: .black.opacity(quiet ? 0 : 0.18), radius: 1, y: 1)
             }
             .shadow(color: glow ? theme.top.opacity(0.55) : .clear, radius: glow ? size * 0.35 : 0, y: glow ? size * 0.12 : 0)
             .accessibilityHidden(true)
@@ -71,7 +75,7 @@ struct Backdrop: View {
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
-        let strength = scheme == .dark ? 0.50 : 0.26
+        let strength = scheme == .dark ? 0.42 : 0.20
         ZStack {
             Rectangle().fill(Color(nsColor: .windowBackgroundColor))
             MeshGradient(

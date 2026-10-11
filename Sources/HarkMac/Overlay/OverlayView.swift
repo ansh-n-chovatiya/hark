@@ -70,7 +70,7 @@ struct OverlayView: View {
             HStack(alignment: .top, spacing: 10) {
                 Image(systemName: "text.bubble.fill")
                     .font(OverlayStyle.icon)
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(HarkBrand.accent)
                     .frame(width: 20, height: 20)
                     .accessibilityHidden(true)
                 Text(text)

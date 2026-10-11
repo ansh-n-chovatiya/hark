@@ -21,7 +21,8 @@ struct SettingsShell: View {
             }
             .frame(maxWidth: .infinity)
         }
-        .background { Backdrop(theme: section.theme) }
+        .background { Backdrop(theme: HarkBrand.theme) }
+        .tint(HarkBrand.accent)
         .frame(width: SettingsLayout.width, height: SettingsLayout.height)
         .task { await model.refreshPermissions() }
     }
@@ -61,17 +62,14 @@ private struct Sidebar: View {
         HStack(spacing: 10) {
             ZStack {
                 RoundedRectangle(cornerRadius: 11, style: .continuous)
-                    .fill(LinearGradient(
-                        colors: [Color(red: 0.37, green: 0.36, blue: 0.90), Color(red: 0.75, green: 0.35, blue: 0.95),
-                                 Color(red: 0.25, green: 0.78, blue: 0.88)],
-                        startPoint: .topLeading, endPoint: .bottomTrailing))
+                    .fill(HarkBrand.theme.gradient)
                     .overlay { RoundedRectangle(cornerRadius: 11, style: .continuous).strokeBorder(.white.opacity(0.3), lineWidth: 0.75) }
                 Image(systemName: "waveform")
                     .font(.system(size: 17, weight: .bold))
                     .foregroundStyle(.white)
             }
             .frame(width: 38, height: 38)
-            .shadow(color: Color(red: 0.55, green: 0.35, blue: 0.95).opacity(0.5), radius: 9, y: 3)
+            .shadow(color: HarkBrand.light.opacity(0.5), radius: 9, y: 3)
             .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 1) {
                 Text("Hark").font(.system(size: 19, weight: .bold, design: .rounded))
@@ -116,7 +114,7 @@ private struct SidebarRow: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 11) {
-                IconTile(symbol: section.symbol, theme: section.theme, size: 28, glow: selected)
+                IconTile(symbol: section.symbol, theme: section.theme, size: 28, glow: selected, quiet: !selected)
                 Text(section.title)
                     .font(.system(size: 14, weight: selected ? .semibold : .medium))
                     .foregroundStyle(selected ? Color.primary : Color.primary.opacity(0.78))

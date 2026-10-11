@@ -1,4 +1,5 @@
-// Draws Hark's app icon: a white waveform on a deep blue rounded square.
+// Draws Hark's app icon: a white waveform on a violet-to-indigo rounded square. The two colours are Hark's brand
+// colours (HarkBrand in Sources/HarkMac/Settings/HarkTheme.swift); change them together.
 // Usage: swift scripts/make-icon.swift <output.png>
 import AppKit
 
@@ -10,8 +11,8 @@ image.lockFocus()
 let body = NSRect(x: 100, y: 100, width: 824, height: 824)
 let shape = NSBezierPath(roundedRect: body, xRadius: 186, yRadius: 186)
 NSGradient(
-    starting: NSColor(calibratedRed: 0.20, green: 0.38, blue: 0.95, alpha: 1),
-    ending: NSColor(calibratedRed: 0.09, green: 0.14, blue: 0.42, alpha: 1)
+    starting: NSColor(calibratedRed: 0.49, green: 0.36, blue: 0.98, alpha: 1),
+    ending: NSColor(calibratedRed: 0.26, green: 0.22, blue: 0.79, alpha: 1)
 )?.draw(in: shape, angle: -90)
 
 // Bars of a waveform, tallest in the middle, like the symbol in the menu bar.

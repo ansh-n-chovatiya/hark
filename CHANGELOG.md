@@ -4,6 +4,13 @@ All notable changes are written here, newest first. Versions follow
 [Semantic Versioning](https://semver.org); while Hark is below 1.0, a minor bump may change
 behaviour.
 
+## 0.2.10 — 2026-10-11
+
+- One brand colour everywhere. The app icon, the mark and headers in Settings, the selection, toggles and buttons, the
+  menu-bar menu and the overlay all use the same violet-to-indigo (HarkBrand), instead of seven section colours and the
+  system blue. Sidebar icons are calm glass tiles until chosen; green, orange and red are kept for status only, with an
+  icon and words. The README banner matches.
+
 ## 0.2.9 — 2026-10-11
 
 - A new look for Settings: a glass sidebar with a colour-coded icon for each section, a large header with a soft glow

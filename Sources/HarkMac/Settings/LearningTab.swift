@@ -145,7 +145,7 @@ private struct SuggestionRow: View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: Self.symbol(for: suggestion.kind))
                 .font(.title3)
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(HarkBrand.accent)
                 .frame(width: 26)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 4) {

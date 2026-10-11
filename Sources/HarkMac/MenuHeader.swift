@@ -50,11 +50,11 @@ struct MenuHeaderView: View {
         HStack(alignment: .center, spacing: 10) {
             Image(systemName: needsAttention ? "exclamationmark.triangle.fill" : "waveform")
                 .font(.body.weight(.semibold))
-                .foregroundStyle(needsAttention ? Color.orange : Color.accentColor)
+                .foregroundStyle(needsAttention ? Color.orange : HarkBrand.accent)
                 .frame(width: 28, height: 28)
                 .background(
                     RoundedRectangle(cornerRadius: 7)
-                        .fill((needsAttention ? Color.orange : Color.accentColor).opacity(0.16))
+                        .fill((needsAttention ? Color.orange : HarkBrand.accent).opacity(0.16))
                 )
                 .accessibilityHidden(true)
             Text(state.status)

@@ -230,13 +230,13 @@ private struct OptionRow<Value: Hashable>: View {
                 if let label = option.unavailable ?? option.tag {
                     Text(label)
                         .font(SettingsLayout.small)
-                        .foregroundStyle(option.tagIsHighlighted && option.unavailable == nil ? Color.accentColor : .secondary)
+                        .foregroundStyle(option.tagIsHighlighted && option.unavailable == nil ? HarkBrand.accent : .secondary)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 2)
                         .background(
                             Capsule().fill(
                                 option.tagIsHighlighted && option.unavailable == nil
-                                    ? Color.accentColor.opacity(0.14) : Color.primary.opacity(0.08)))
+                                    ? HarkBrand.accent.opacity(0.14) : Color.primary.opacity(0.08)))
                         .lineLimit(1)
                 }
             }
@@ -254,7 +254,7 @@ private struct OptionRow<Value: Hashable>: View {
     }
 
     private var background: Color {
-        if isSelected { return Color.accentColor.opacity(0.14) }
+        if isSelected { return HarkBrand.accent.opacity(0.14) }
         return isHovered ? Color.primary.opacity(0.08) : .clear
     }
 }
