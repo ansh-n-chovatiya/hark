@@ -210,7 +210,8 @@ private func syntheticItems(_ count: Int) -> [Item] {
         print("rank 3000 items for \"\(said)\": \(fastest) parse+rank, \(found) matches")
         #expect(found > 0)
         // A guard against the ranking becoming far slower, not a measurement: this is a debug
-        // build timed while other tests and builds share the machine, where 4 ms has read as 7.
-        #expect(fastest < .milliseconds(20))
+        // build timed while other tests and builds share the machine, where 4 ms has read as 7 and a
+        // shared CI runner as 24.
+        #expect(fastest < .milliseconds(60))
     }
 }
