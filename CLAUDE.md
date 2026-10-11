@@ -32,6 +32,11 @@ wrong task.
 - The model key lives in the macOS Keychain (service `dev.hark.app`, account `model-key`); a key typed into
   `~/.config/hark/config.json` is moved there on the next start. Never print it, log it or copy it into
   the project. Every reader of the settings goes through `ConfigStore`.
+- No fix may name a specific app, website, browser or tool in the logic (no lists, tables, bundle ids or special
+  cases for Chrome, VS Code, YouTube, a terminal and so on). Read facts from the Mac instead: installed apps'
+  Info.plist, scripting definitions, LaunchServices, a site's own published search page, the front app's menus,
+  what is open now. Rank readings by context and let the model settle close calls. Names may appear in examples,
+  prompts, docs and tests, never in the rules. It must work for an app that did not exist when it was written.
 - Never claim a speed without a number from the timing log.
 - When accuracy and speed pull apart, choose accuracy, up to about two seconds from key release
   to action (decision 0007). Past that, look for a faster way to be right, not a faster guess.
