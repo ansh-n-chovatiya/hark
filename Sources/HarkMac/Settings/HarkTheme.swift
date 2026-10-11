@@ -12,14 +12,14 @@ struct SectionTheme {
     }
 }
 
-/// Hark's one brand colour: the calm deep teal of the app icon. It is the accent everywhere in the app (selection,
+/// Hark's one brand colour: the deep blue of the original app icon. It is the accent everywhere in the app (selection,
 /// toggles, buttons, headers), so the icon, the menu bar menu, the overlay and Settings read as one product. Green,
 /// orange and red are kept for status and always come with an icon and words.
 enum HarkBrand {
-    static let light = Color(red: 0.30, green: 0.64, blue: 0.66)
-    static let deep = Color(red: 0.12, green: 0.40, blue: 0.50)
+    static let light = Color(red: 0.20, green: 0.38, blue: 0.95)
+    static let deep = Color(red: 0.09, green: 0.14, blue: 0.42)
     /// For text, symbols and selection: readable on both light and dark windows.
-    static let accent = Color(red: 0.20, green: 0.58, blue: 0.62)
+    static let accent = Color(red: 0.31, green: 0.50, blue: 1.0)
     static let theme = SectionTheme(top: light, bottom: deep)
 }
 
