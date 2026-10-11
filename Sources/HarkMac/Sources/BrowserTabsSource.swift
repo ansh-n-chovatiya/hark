@@ -2,31 +2,41 @@ import AppKit
 import Carbon
 import HarkCore
 
-public enum ChromeTabsError: LocalizedError, Sendable {
-    case automationDenied
-    case script(String)
+public enum BrowserTabsError: LocalizedError, Sendable {
+    case automationDenied(String)
+    case script(String, String)
 
     public var errorDescription: String? {
         switch self {
-        case .automationDenied:
-            "Hark is not allowed to control Google Chrome. Turn on Google Chrome under Hark in "
+        case .automationDenied(let app):
+            "Hark is not allowed to control \(app). Turn on \(app) under Hark in "
                 + "System Settings, Privacy & Security, Automation."
-        case .script(let message): "Google Chrome did not answer: \(message)"
+        case .script(let app, let message): "\(app) did not answer: \(message)"
         }
     }
 }
 
-public actor ChromeTabsSource: ItemSource {
+/// The tabs of one browser, through its scripting dictionary. There is one of these for each browser on the Mac.
+public actor BrowserTabsSource: ItemSource {
     public nonisolated let kinds: Set<ItemKind> = [.tab]
 
     /// Why the last `refresh()` left the snapshot empty, when the cause was not "Chrome is quit".
-    public private(set) var refreshFailure: ChromeTabsError?
+    public private(set) var refreshFailure: BrowserTabsError?
 
     private var snapshot: [Item] = []
     private var seenActive: [String: Date] = [:]
     private var activeLastTime: Set<String> = []
 
-    public init() {}
+    let browser: BrowserApp
+    private let script: TabScript
+
+    init(browser: BrowserApp) {
+        self.browser = browser
+        script = TabScript(browser: browser)
+    }
+
+    public nonisolated var appName: String { browser.name }
+    public nonisolated var bundleID: String { browser.bundleID }
 
     public func refresh() async {
         do {
@@ -34,7 +44,7 @@ public actor ChromeTabsSource: ItemSource {
             refreshFailure = nil
         } catch {
             snapshot = []
-            refreshFailure = error as? ChromeTabsError ?? .script(error.localizedDescription)
+            refreshFailure = error as? BrowserTabsError ?? .script(browser.name, error.localizedDescription)
         }
     }
 
@@ -45,7 +55,7 @@ public actor ChromeTabsSource: ItemSource {
     /// The site (its host name, nothing more) of the front tab of the front window, or nil when Chrome
     /// is not running, is not answering, or the window is private.
     public func frontSite() async -> String? {
-        guard ChromeScript.isRunning, let tabs = try? await ChromeScript.list() else { return nil }
+        guard await script.isRunning, let tabs = try? await script.list() else { return nil }
         guard let tab = tabs.first(where: { $0.isActive && $0.inFrontWindow }), !tab.isPrivate,
               let host = URL(string: tab.url)?.host()?.lowercased(), !host.isEmpty
         else { return nil }
@@ -80,10 +90,10 @@ public actor ChromeTabsSource: ItemSource {
     public func closeDuplicates(inWindow window: String? = nil) async throws -> (closed: Int, undo: UndoStep?) {
         let extras = try await duplicates(inWindow: window).compactMap(Self.tabID)
         guard !extras.isEmpty else { return (0, nil) }
-        let closed = try await ChromeScript.close(extras)
+        let closed = try await script.close(extras)
         guard !closed.isEmpty else { return (0, nil) }
         let noun = closed.count == 1 ? "duplicate tab" : "duplicate tabs"
-        let undo = UndoStep(summary: "Reopened \(closed.count) \(noun)") { try await Self.reopen(closed) }
+        let undo = UndoStep(summary: "Reopened \(closed.count) \(noun)") { [self] in try await reopen(closed) }
         return (closed.count, undo)
     }
 
@@ -92,15 +102,16 @@ public actor ChromeTabsSource: ItemSource {
             throw SourceError.gone(item.title)
         }
         let previousApp = await MainActor.run { NSWorkspace.shared.frontmostApplication?.bundleURL }
-        guard let previous = try await ChromeScript.focus(window: window, tab: tab, bringForward: true) else {
+        guard let previous = try await script.focus(window: window, tab: tab, bringForward: true) else {
             throw SourceError.gone(item.title)
         }
+        let script = script, ownID = browser.bundleID
         return UndoStep(summary: "Went back from \(item.title)") {
-            _ = try await ChromeScript.focus(window: window, tab: previous.tab, bringForward: false)
+            _ = try await script.focus(window: window, tab: previous.tab, bringForward: false)
             if previous.frontWindow != window {
-                try await ChromeScript.raise(window: previous.frontWindow)
+                try await script.raise(window: previous.frontWindow)
             }
-            guard let previousApp, Bundle(url: previousApp)?.bundleIdentifier != ChromeScript.bundleID else { return }
+            guard let previousApp, Bundle(url: previousApp)?.bundleIdentifier != ownID else { return }
             let configuration = NSWorkspace.OpenConfiguration()
             configuration.activates = true
             _ = try await NSWorkspace.shared.openApplication(at: previousApp, configuration: configuration)
@@ -109,18 +120,18 @@ public actor ChromeTabsSource: ItemSource {
 
     private func close(_ item: Item) async throws -> UndoStep? {
         guard let tab = Self.tabID(item) else { throw SourceError.gone(item.title) }
-        let closed = try await ChromeScript.close([tab])
+        let closed = try await script.close([tab])
         guard !closed.isEmpty else { throw SourceError.gone(item.title) }
-        return UndoStep(summary: "Reopened \(item.title)") { try await Self.reopen(closed) }
+        return UndoStep(summary: "Reopened \(item.title)") { [self] in try await reopen(closed) }
     }
 
     private func load() async throws -> [Item] {
-        guard ChromeScript.isRunning else {
+        guard await script.isRunning else {
             seenActive = [:]
             activeLastTime = []
             return []
         }
-        let tabs = try await ChromeScript.list()
+        let tabs = try await script.list()
         let now = Date()
         var stamps: [String: Date] = [:]
         for tab in tabs {
@@ -137,19 +148,19 @@ public actor ChromeTabsSource: ItemSource {
                 kind: .tab,
                 title: tab.title.isEmpty ? tab.url : tab.title,
                 detail: Self.site(tab.url),
-                owner: "Google Chrome",
+                owner: browser.name,
                 lastUsed: stamps[tab.id],
                 payload: ["window": "\(tab.window)", "tab": "\(tab.id)", "index": "\(tab.index)", "url": tab.url]
             )
         }
     }
 
-    private static func reopen(_ closed: [ChromeScript.ClosedTab]) async throws {
+    private func reopen(_ closed: [TabScript.ClosedTab]) async throws {
         var replacements: [String: String] = [:]
         let inOrder = closed.sorted { ($0.window, $0.index) < ($1.window, $1.index) }
         for tab in inOrder {
             let window = replacements[tab.window] ?? tab.window
-            let used = try await ChromeScript.open(tab, inWindow: window)
+            let used = try await script.open(tab, inWindow: window)
             if used != window { replacements[tab.window] = used }
         }
     }
@@ -168,8 +179,13 @@ public actor ChromeTabsSource: ItemSource {
     }
 }
 
-// NSAppleScript is only safe on the main thread, so every call to Chrome hops there.
-@MainActor private enum ChromeScript {
+
+// NSAppleScript is only safe on the main thread, so every call to the browser hops there.
+@MainActor final class TabScript {
+    let browser: BrowserApp
+
+    nonisolated init(browser: BrowserApp) { self.browser = browser }
+
     struct LiveTab: Sendable {
         let window: String
         let index: Int
@@ -189,13 +205,11 @@ public actor ChromeTabsSource: ItemSource {
         let wasActive: Bool
     }
 
-    nonisolated static let bundleID = "com.google.Chrome"
-
-    nonisolated static var isRunning: Bool {
-        !NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).isEmpty
+    var isRunning: Bool {
+        !NSRunningApplication.runningApplications(withBundleIdentifier: browser.bundleID).isEmpty
     }
 
-    private static var compiled: NSAppleScript?
+    private var compiled: NSAppleScript?
 
     private enum Code {
         static let id: AEKeyword = 0x4944_2020              // 'ID  '
@@ -217,7 +231,7 @@ public actor ChromeTabsSource: ItemSource {
         return !(name.contains("normal") || code == "nrml" || code == "norm")
     }
 
-    static func list() throws -> [LiveTab] {
+    func list() throws -> [LiveTab] {
         let result = try call("listTabs")
         guard result.numberOfItems == 2, let windows = result.atIndex(1), let tabLists = result.atIndex(2) else {
             return []
@@ -242,25 +256,25 @@ public actor ChromeTabsSource: ItemSource {
                     url: tab.forKeyword(Code.url)?.stringValue ?? "",
                     isActive: index == Int(active),
                     inFrontWindow: windowPosition == 1,
-                    isPrivate: isPrivate(properties)
+                    isPrivate: Self.isPrivate(properties)
                 ))
             }
         }
         return tabs
     }
 
-    static func focus(window: String, tab: String, bringForward: Bool) throws -> (frontWindow: String, tab: String)? {
+    func focus(window: String, tab: String, bringForward: Bool) throws -> (frontWindow: String, tab: String)? {
         let result = try call("focusTab", [.init(string: window), .init(string: tab), .init(boolean: bringForward)])
         guard result.numberOfItems == 2, let front = result.atIndex(1)?.stringValue,
               let previous = result.atIndex(2)?.stringValue else { return nil }
         return (front, previous)
     }
 
-    static func raise(window: String) throws {
+    func raise(window: String) throws {
         _ = try call("raiseWindow", [.init(string: window)])
     }
 
-    static func close(_ tabs: [String]) throws -> [ClosedTab] {
+    func close(_ tabs: [String]) throws -> [ClosedTab] {
         let ids = NSAppleEventDescriptor.list()
         for tab in tabs { ids.insert(.init(string: tab), at: 0) }
         let result = try call("closeTabs", [ids])
@@ -274,14 +288,14 @@ public actor ChromeTabsSource: ItemSource {
     }
 
     /// Returns the window the tab landed in, which is a new one when the old window is gone.
-    static func open(_ tab: ClosedTab, inWindow window: String) throws -> String {
+    func open(_ tab: ClosedTab, inWindow window: String) throws -> String {
         try call("openTab", [.init(string: window), .init(int32: Int32(tab.index)), .init(string: tab.url),
                              .init(boolean: tab.wasActive)]).stringValue ?? window
     }
 
-    private static func call(_ handler: String, _ parameters: [NSAppleEventDescriptor] = []) throws
+    private func call(_ handler: String, _ parameters: [NSAppleEventDescriptor] = []) throws
         -> NSAppleEventDescriptor {
-        // Running the script would launch Chrome if it had quit since the last look.
+        // Running the script would launch the browser if it had quit since the last look.
         guard isRunning else { return .list() }
         let script = try compiled ?? compile()
         compiled = script
@@ -304,26 +318,26 @@ public actor ChromeTabsSource: ItemSource {
         return result
     }
 
-    private static func compile() throws -> NSAppleScript {
-        guard let script = NSAppleScript(source: source) else { throw ChromeTabsError.script("no script") }
+    private func compile() throws -> NSAppleScript {
+        guard let script = NSAppleScript(source: source) else { throw BrowserTabsError.script(browser.name, "no script") }
         var failure: NSDictionary?
         guard script.compileAndReturnError(&failure) else {
-            throw failure.map(error(from:)) ?? ChromeTabsError.script("the script did not compile")
+            throw failure.map(error(from:)) ?? BrowserTabsError.script(browser.name, "the script did not compile")
         }
         return script
     }
 
-    private static func error(from failure: NSDictionary) -> ChromeTabsError {
+    private func error(from failure: NSDictionary) -> BrowserTabsError {
         let number = failure[NSAppleScript.errorNumber] as? Int ?? 0
-        if number == errAEEventNotPermitted { return .automationDenied }
+        if number == errAEEventNotPermitted { return .automationDenied(browser.name) }
         let message = failure[NSAppleScript.errorMessage] as? String ?? "unknown error"
-        return .script("\(message) (\(number))")
+        return .script(browser.name, "\(message) (\(number))")
     }
 
-    private static let source = """
+    private var source: String { """
     on listTabs()
         with timeout of 5 seconds
-            tell application id "com.google.Chrome"
+            tell application id "\(browser.bundleID)"
                 return {properties of every window, properties of every tab of every window}
             end tell
         end timeout
@@ -338,7 +352,7 @@ public actor ChromeTabsSource: ItemSource {
 
     on focusTab(windowId, tabId, bringForward)
         with timeout of 5 seconds
-            tell application id "com.google.Chrome"
+            tell application id "\(browser.bundleID)"
                 if not (exists window id windowId) then return {}
                 set theWindow to window id windowId
                 set place to my placeOf(tabId, id of every tab of theWindow)
@@ -357,7 +371,7 @@ public actor ChromeTabsSource: ItemSource {
 
     on raiseWindow(windowId)
         with timeout of 5 seconds
-            tell application id "com.google.Chrome"
+            tell application id "\(browser.bundleID)"
                 if exists window id windowId then set index of window id windowId to 1
             end tell
         end timeout
@@ -366,7 +380,7 @@ public actor ChromeTabsSource: ItemSource {
     on closeTabs(tabIds)
         set closed to {}
         with timeout of 5 seconds
-            tell application id "com.google.Chrome"
+            tell application id "\(browser.bundleID)"
                 set windowIds to id of every window
                 repeat with windowRef in windowIds
                     set windowId to contents of windowRef
@@ -388,7 +402,7 @@ public actor ChromeTabsSource: ItemSource {
 
     on openTab(windowId, place, address, makeActive)
         with timeout of 5 seconds
-            tell application id "com.google.Chrome"
+            tell application id "\(browser.bundleID)"
                 if not (exists window id windowId) then
                     set theWindow to make new window
                     set URL of active tab of theWindow to address
@@ -407,5 +421,5 @@ public actor ChromeTabsSource: ItemSource {
             end tell
         end timeout
     end openTab
-    """
+    """ }
 }

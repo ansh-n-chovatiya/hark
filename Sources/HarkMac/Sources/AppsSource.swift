@@ -66,7 +66,7 @@ public actor AppsSource: ItemSource {
         configuration.activates = false
         configuration.hides = true
         let app = URL(fileURLWithPath: path)
-        if Browser.isChrome(app) { configuration.arguments = Browser.startArguments() }
+        if Browser.isBrowser(app) { configuration.arguments = Browser.startArguments(for: app) }
         let previous = await MainActor.run { NSWorkspace.shared.frontmostApplication }
         let started = try await NSWorkspace.shared.openApplication(at: app, configuration: configuration)
         // The first second is waited for, so the answer is true when it is given. Slower apps
@@ -94,7 +94,7 @@ public actor AppsSource: ItemSource {
     private static func bringForward(_ app: URL) async throws {
         let configuration = NSWorkspace.OpenConfiguration()
         configuration.activates = true
-        if Browser.isChrome(app) { configuration.arguments = Browser.startArguments() }
+        if Browser.isBrowser(app) { configuration.arguments = Browser.startArguments(for: app) }
         _ = try await NSWorkspace.shared.openApplication(at: app, configuration: configuration)
     }
 

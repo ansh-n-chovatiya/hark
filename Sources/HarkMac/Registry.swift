@@ -3,7 +3,12 @@ import HarkCore
 
 public enum Registry {
     public static func sources(config: Config) -> [any ItemSource] {
-        [AppsSource(), WindowsSource(), ChromeTabsSource(), FilesSource(folders: config.searchFolders)]
+        [AppsSource(), WindowsSource()] + browserSources() + [FilesSource(folders: config.searchFolders)]
+    }
+
+    /// One tab source for each scriptable browser on this Mac.
+    public static func browserSources() -> [BrowserTabsSource] {
+        Browsers.scriptable.map { BrowserTabsSource(browser: $0) }
     }
 
     /// Kept apart from `sources` because it starts recording copies, which only the running app

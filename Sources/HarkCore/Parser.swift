@@ -128,7 +128,7 @@ private let trailingNoise: Set<String> = ["open", "opened", "running", "up", "no
 
 private let newTabMarkers: Set<String> = ["new", "empty", "blank", "fresh"]
 private let newTabNoise: Set<String> = [
-    "open", "new", "empty", "blank", "fresh", "tab", "in", "on", "chrome", "browser", "create", "make",
+    "open", "new", "empty", "blank", "fresh", "tab", "in", "on", "create", "make",
     "start", "another", "and", "with",
 ]
 
@@ -183,15 +183,15 @@ private let kindWords: [String: [ItemKind]] = [
     "project": [.window, .file], "repo": [.window, .file], "repository": [.window, .file],
 ]
 
-/// "Open a Chrome tab" with nothing else said can only mean a new one.
-private let bareBrowserQueries: Set<String> = ["", "chrome", "browser"]
-
 private let ownerMarkers: Set<String> = ["from", "in"]
 
 public struct RuleParser: Sendable {
     private let aliases: [Phrase]
+    /// "Open a Brave tab" with nothing else said can only mean a new one: the words that can name a browser.
+    private let browserWords: Set<String>
 
-    public init(aliases: [String: String]) {
+    public init(aliases: [String: String], browserWords: Set<String> = ["browser"]) {
+        self.browserWords = browserWords
         self.aliases = aliases
             .map { spoken, real in
                 Phrase(
@@ -217,7 +217,7 @@ public struct RuleParser: Sendable {
         let words = commandWords(heard)
         guard !words.isEmpty else { return nil }
         if words.contains("tab"), !newTabMarkers.isDisjoint(with: words) {
-            let wanted = words.filter { !newTabNoise.contains($0) }
+            let wanted = words.filter { !newTabNoise.contains($0) && !browserWords.contains($0) }
             return Command(verb: .newTab, query: joined(wanted), kinds: [.tab], raw: transcript)
         }
 
@@ -267,7 +267,7 @@ public struct RuleParser: Sendable {
         }
         while let last = named.last, trailingNoise.contains(last) { named.removeLast() }
         let (description, owner) = splitOwner(named)
-        if verb == .open, kinds == [.tab], owner.isEmpty, bareBrowserQueries.contains(joined(description)) {
+        if verb == .open, kinds == [.tab], owner.isEmpty, (description.isEmpty || description.allSatisfy(browserWords.contains)) {
             return Command(verb: .newTab, query: "", kinds: [.tab], raw: raw)
         }
         return Command(

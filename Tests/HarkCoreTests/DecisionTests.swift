@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import HarkCore
 
-private let parser = RuleParser(aliases: ["vs code": "code"])
+private let parser = RuleParser(aliases: ["vs code": "code"], browserWords: ["browser", "chrome"])
 private let desk: [Item] = [
     Item(id: "a1", kind: .app, title: "Google Chrome", detail: "Open"),
     Item(id: "a2", kind: .app, title: "Warp", detail: "Open"),

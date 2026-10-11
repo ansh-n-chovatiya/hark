@@ -121,7 +121,7 @@ public actor Pipeline {
         self.saveRoutine = saveRoutine
         self.announce = announce
         links = config.links
-        parser = RuleParser(aliases: Self.builtInAliases.merging(config.aliases) { _, chosen in chosen })
+        parser = RuleParser(aliases: Self.builtInAliases.merging(config.aliases) { _, chosen in chosen }, browserWords: Browsers.nameWords)
         self.sources = sources
         self.log = log
         self.dryRun = dryRun
@@ -241,7 +241,7 @@ public actor Pipeline {
         } else if let site = await siteSearch(asked.command, timings: &timings) {
             // A search that names a site is run on that site: the words said say where, so no model is asked.
             outcome = site
-        } else if let search = WebSearch.request(in: asked.command) {
+        } else if let search = WebSearch.request(in: asked.command, browserWords: Browsers.nameWords) {
             // A web search needs no model: the address is built from the words that were said.
             timings.verb = "search"
             outcome = await timed(&timings.actMs) { await searchWeb(search) }
@@ -435,11 +435,11 @@ public actor Pipeline {
         return words.contains("this") || words.contains("current") || words.starts(with: ["the", "front"])
     }
 
-    /// The tab, window or app in front. A tab only counts while Chrome is in front.
+    /// The tab, window or app in front. A tab only counts while a browser is in front.
     private func frontItem(of kind: ItemKind) async -> Item? {
         if kind == .tab {
             let front = await MainActor.run { NSWorkspace.shared.frontmostApplication?.bundleIdentifier }
-            guard front == "com.google.Chrome" else { return nil }
+            guard Browsers.isBrowser(front) else { return nil }
         }
         let inFront = await openItems().filter { $0.kind == kind && $0.lastUsed != nil }
         return inFront.max { ($0.lastUsed ?? .distantPast) < ($1.lastUsed ?? .distantPast) }
@@ -585,10 +585,10 @@ public actor Pipeline {
         return words.starts(with: ["new"]) && ["tab", "window"].contains(words.last ?? "")
     }
 
-    private func frontAppIsNotChrome() async -> Bool {
+    private func frontAppIsNotBrowser() async -> Bool {
         await MainActor.run {
             guard let app = NSWorkspace.shared.frontmostApplication else { return false }
-            return !(app.bundleIdentifier ?? "").hasPrefix("com.google.Chrome")
+            return !Browsers.isBrowser(app.bundleIdentifier)
         }
     }
 
@@ -732,7 +732,7 @@ public actor Pipeline {
 
     /// Nil when the words name no site that can be searched, so the other rules carry on.
     private func siteSearch(_ transcript: String, timings: inout Timings) async -> Outcome? {
-        guard let request = SiteSearch.request(in: transcript), await !namesAnApp(request.site) else { return nil }
+        guard let request = SiteSearch.request(in: transcript, browserWords: Browsers.nameWords), await !namesAnApp(request.site) else { return nil }
         let started = clock.now
         guard let address = await SiteFinder.shared.address(
             for: request.site, query: request.query, openHosts: await openSiteHosts())
@@ -752,11 +752,13 @@ public actor Pipeline {
 
     private func searchWeb(_ request: WebSearchRequest) async -> Outcome {
         guard let address = request.address else { return .notUnderstood("I could not build that search") }
+        // "In Brave": the browser the user named; "in the browser" or no name is the default one.
+        let target = request.browser.flatMap(Browsers.named)
         if dryRun {
-            return .done("Would: Search Google for \u{201C}\(request.query)\u{201D}\(request.inChrome ? " in Chrome" : "")")
+            return .done("Would: Search Google for \u{201C}\(request.query)\u{201D}\(target.map { " in \($0.name)" } ?? "")")
         }
         var arguments: [String: JSONValue] = ["url": .string(address.absoluteString)]
-        if request.inChrome { arguments["app"] = .string("Google Chrome") }
+        if let target { arguments["app"] = .string(target.name) }
         do {
             _ = try await OpenAddressTool().call(.object(arguments))
             return .done("Searched Google for \u{201C}\(request.query)\u{201D}")
@@ -888,8 +890,8 @@ public actor Pipeline {
             return await timed(&timings.actMs) { await closeDuplicateTabs() }
         case .newTab:
             // A bare "new tab" belongs to the app in front; only a browser (or nothing it can use) gets a web tab.
-            let namesBrowser = !Set(AppAction.tokens(command.raw)).isDisjoint(with: ["chrome", "browser", "web", "website"])
-            if command.query.isEmpty, !namesBrowser, await frontAppIsNotChrome(),
+            let namesBrowser = !Set(AppAction.tokens(command.raw)).isDisjoint(with: Browsers.nameWords.union(["web", "website"]))
+            if command.query.isEmpty, !namesBrowser, await frontAppIsNotBrowser(),
                let done = await frontMenuAction("new tab", strict: false) { return done }
             return await timed(&timings.actMs) { await openNewTab(command.query) }
         case .save:
@@ -970,7 +972,7 @@ public actor Pipeline {
         // A list is only worth showing for things a person could not tell apart by name either.
         let rivals = Self.lookAlikes(in: matches)
         if rivals.count > 1 { return offer(rivals, for: command.verb) }
-        if let failure = await chromeFailure(for: command) { return .failed(failure) }
+        if let failure = await browserFailure(for: command) { return .failed(failure) }
         return .notUnderstood(agentSaid ?? "I could not work out what to do with \u{201C}\(command.raw)\u{201D}")
     }
 
@@ -1271,15 +1273,25 @@ public actor Pipeline {
         }
     }
 
-    private var chrome: ChromeTabsSource? {
-        sources.lazy.compactMap { $0 as? ChromeTabsSource }.first
+    private var browserSources: [BrowserTabsSource] {
+        sources.compactMap { $0 as? BrowserTabsSource }
+    }
+
+    /// The browser in front, else the first one that is running.
+    private func tabBrowser() async -> BrowserTabsSource? {
+        let front = await MainActor.run { NSWorkspace.shared.frontmostApplication?.bundleIdentifier }
+        let all = browserSources
+        if let match = all.first(where: { $0.bundleID == front }) { return match }
+        return await MainActor.run {
+            all.first { !NSRunningApplication.runningApplications(withBundleIdentifier: $0.bundleID).isEmpty }
+        } ?? all.first
     }
 
     private func closeDuplicateTabs() async -> Outcome {
-        guard let chrome else { return .failed("Hark cannot reach Chrome tabs") }
+        guard let browser = await tabBrowser() else { return .failed("Hark cannot reach any browser's tabs") }
         if dryRun { return .done("Would: close duplicate tabs") }
         do {
-            let result = try await chrome.closeDuplicates()
+            let result = try await browser.closeDuplicates()
             if let step = result.undo { undo.push(step) }
             switch result.closed {
             case 0: return .done("No duplicate tabs")
@@ -1291,10 +1303,13 @@ public actor Pipeline {
         }
     }
 
-    /// When a tab was asked for and Chrome could not be read, say why instead of "nothing matches".
-    private func chromeFailure(for command: Command) async -> String? {
+    /// When a tab was asked for and a browser could not be read, say why instead of "nothing matches".
+    private func browserFailure(for command: Command) async -> String? {
         guard command.kinds.isEmpty || command.kinds.contains(.tab) else { return nil }
-        return await chrome?.refreshFailure?.localizedDescription
+        for browser in browserSources {
+            if let failure = await browser.refreshFailure { return failure.localizedDescription }
+        }
+        return nil
     }
 
     private func undoLast() async -> Outcome {
@@ -1337,39 +1352,50 @@ public actor Pipeline {
 }
 
 enum Browser {
-    private static let chromeID = "com.google.Chrome"
-
-    struct ChromeMissing: LocalizedError {
-        var errorDescription: String? { "Google Chrome is not installed" }
+    struct NoBrowser: LocalizedError {
+        var errorDescription: String? { "No web browser was found" }
     }
 
-    static func isChrome(_ app: URL) -> Bool {
-        Bundle(url: app)?.bundleIdentifier == chromeID
-    }
-
-    /// What to start Chrome with so that it opens straight into the profile used last. With
-    /// more than one profile, Chrome otherwise stops at a "Who's using Chrome?" window every
-    /// time something else starts it. The arguments are ignored when Chrome is already running.
-    static func startArguments() -> [String] {
-        let state = FileManager.default.homeDirectoryForCurrentUser
-            .appending(path: "Library/Application Support/Google/Chrome/Local State")
-        guard let data = try? Data(contentsOf: state),
-              let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let profile = (root["profile"] as? [String: Any])?["last_used"] as? String, !profile.isEmpty
-        else { return [] }
-        return ["--profile-directory=\(profile)"]
-    }
-
-    /// A nil address opens a blank tab.
-    @MainActor static func openNewTab(_ address: URL?) async throws {
-        guard let chrome = NSWorkspace.shared.urlForApplication(withBundleIdentifier: chromeID) else {
-            throw ChromeMissing()
+    /// What to start a Chromium-based browser with so that it opens straight into the profile used last. With
+    /// more than one profile it otherwise stops at a "who is using this browser" window every time something else
+    /// starts it. The arguments are ignored when the browser is already running. The profile list is the one the
+    /// browser keeps in its own folder under Application Support, found by the browser's name.
+    static func startArguments(for app: URL) -> [String] {
+        let words = AppAction.tokens(FileManager.default.displayName(atPath: app.path)).filter { $0 != "app" && $0 != "google" }
+        guard !words.isEmpty else { return [] }
+        let support = FileManager.default.homeDirectoryForCurrentUser.appending(path: "Library/Application Support")
+        let enumerator = FileManager.default.enumerator(
+            at: support, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles, .skipsPackageDescendants])
+        while let url = enumerator?.nextObject() as? URL {
+            if url.pathComponents.count - support.pathComponents.count > 3 { enumerator?.skipDescendants(); continue }
+            guard url.lastPathComponent == "Local State" else { continue }
+            let path = AppAction.tokens(url.deletingLastPathComponent().path)
+            guard words.allSatisfy(path.contains),
+                  let data = try? Data(contentsOf: url),
+                  let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let profile = (root["profile"] as? [String: Any])?["last_used"] as? String, !profile.isEmpty
+            else { continue }
+            return ["--profile-directory=\(profile)"]
         }
+        return []
+    }
+
+    static func isBrowser(_ app: URL) -> Bool {
+        Browsers.isBrowser(Bundle(url: app)?.bundleIdentifier)
+    }
+
+    /// A nil address opens a blank tab. In the browser in front, else the one the user chose in System Settings.
+    @MainActor static func openNewTab(_ address: URL?, in named: BrowserApp? = nil) async throws {
+        let front = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+        guard let browser = named ?? Browsers.all.first(where: { $0.bundleID == front }) ?? Browsers.defaultBrowser
+            ?? Browsers.all.first
+        else { throw NoBrowser() }
         let configuration = NSWorkspace.OpenConfiguration()
         configuration.activates = true
-        configuration.arguments = startArguments()
-        let target = address ?? URL(string: "chrome://newtab")!
-        _ = try await NSWorkspace.shared.open([target], withApplicationAt: chrome, configuration: configuration)
+        configuration.arguments = startArguments(for: browser.url)
+        let blank = Browsers.scriptable.contains(browser) ? "chrome://newtab" : "about:blank"
+        let target = address ?? URL(string: blank)!
+        _ = try await NSWorkspace.shared.open([target], withApplicationAt: browser.url, configuration: configuration)
     }
 }
 

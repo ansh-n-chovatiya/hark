@@ -41,11 +41,11 @@ public enum Permissions {
 
     private static func chromeAutomationStatus() -> PermissionStatus {
         // macOS only answers for an app that is open ("process not found" otherwise), and that is not a no.
-        guard !NSRunningApplication.runningApplications(withBundleIdentifier: "com.google.Chrome").isEmpty else {
-            return .unknown
-        }
-        let chrome = NSAppleEventDescriptor(bundleIdentifier: "com.google.Chrome")
-        let status = AEDeterminePermissionToAutomateTarget(chrome.aeDesc, typeWildCard, typeWildCard, false)
+        guard let browser = Browsers.scriptable.first(where: {
+            !NSRunningApplication.runningApplications(withBundleIdentifier: $0.bundleID).isEmpty
+        }) else { return .unknown }
+        let target = NSAppleEventDescriptor(bundleIdentifier: browser.bundleID)
+        let status = AEDeterminePermissionToAutomateTarget(target.aeDesc, typeWildCard, typeWildCard, false)
         switch status {
         case noErr: return .granted
         case OSStatus(errAEEventNotPermitted): return .denied

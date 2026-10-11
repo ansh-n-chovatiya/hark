@@ -146,7 +146,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             try? ConfigStore.save(config)
             logger.notice("set up folders and projects on first run")
         }
-        let recorder = ActivityRecorder(log: activityLog, chrome: ChromeTabsSource()) { [weak self] in
+        let recorder = ActivityRecorder(log: activityLog, browsers: Registry.browserSources()) { [weak self] in
             self?.config.learns ?? false
         }
         recorder.start()
@@ -791,9 +791,9 @@ func runCommandLine(_ flag: String, _ values: [String]) async -> Int32 {
         return 0
     case "--permissions":
         for permission in Permission.allCases { print("\(permission.rawValue): \(Permissions.status(permission).rawValue)") }
-        let chrome = NSAppleEventDescriptor(bundleIdentifier: "com.google.Chrome")
+        let chrome = NSAppleEventDescriptor(bundleIdentifier: Registry.browserSources().first?.bundleID ?? "")
         let raw = AEDeterminePermissionToAutomateTarget(chrome.aeDesc, typeWildCard, typeWildCard, false)
-        print("chrome running: \(!NSRunningApplication.runningApplications(withBundleIdentifier: "com.google.Chrome").isEmpty), raw code: \(raw)")
+        print("chrome running: \(!NSRunningApplication.runningApplications(withBundleIdentifier: Registry.browserSources().first?.bundleID ?? "").isEmpty), raw code: \(raw)")
         return 0
     case "--show-dictation":
         // Puts the dictation pill on screen for a few seconds, to see it where the real one appears.

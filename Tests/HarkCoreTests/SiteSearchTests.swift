@@ -18,7 +18,7 @@ import Testing
 
     @Test func enginesAndPlainSearchesAreLeftToTheOtherRules() {
         #expect(SiteSearch.request(in: "search swift on google") == nil)
-        #expect(SiteSearch.request(in: "open chrome and search the weather") == nil)
+        #expect(SiteSearch.request(in: "open chrome and search the weather", browserWords: ["browser", "chrome"]) == nil)
         #expect(SiteSearch.request(in: "open youtube") == nil)
         #expect(SiteSearch.request(in: "youtube imran hashmi") == nil)
     }

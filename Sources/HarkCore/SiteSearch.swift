@@ -10,14 +10,16 @@ public struct SiteSearchRequest: Sendable, Equatable {
 /// run in that place, not on the default search engine. Nothing here knows any particular site: the words only say
 /// "this name, this query", and the site's own published search page is looked up afterwards (see `OpenSearch`).
 public enum SiteSearch {
-    /// Said for the plain search engine or the browser, which the web search rule already handles.
-    private static let engines: Set<String> = ["google", "chrome", "web", "internet", "net", "browser", "brave", "safari"]
+    /// Said for the plain search engine or the web itself, which the web search rule already handles. A browser's
+    /// name is added by the caller (`browserWords`).
+    private static let engines: Set<String> = ["google", "web", "internet", "net"]
     private static let openers: [[String]] = [["open"], ["go", "to"], ["visit"], ["launch"], ["show"]]
     private static let searchWords: [[String]] = [["look", "for"], ["search", "for"], ["look", "up"], ["search"], ["find"], ["lookup"]]
     private static let joiners: Set<String> = ["and", "then"]
     private static let mostWords = 14
 
-    public static func request(in transcript: String) -> SiteSearchRequest? {
+    public static func request(in transcript: String, browserWords: Set<String> = ["browser"]) -> SiteSearchRequest? {
+        let engines = Self.engines.union(browserWords)
         var words = tokens(transcript)
         var opened = false
         while let opener = openers.first(where: { words.starts(with: $0) }), words.count > opener.count {

@@ -1,15 +1,14 @@
 import AppKit
 import HarkCore
 
-/// Notes which app comes to the front and, while Chrome is in front, which site its tab is on, so
+/// Notes which app comes to the front and, while a browser is in front, which site its tab is on, so
 /// Hark can spot habits. Names only: never a title, address, text typed or anything copied. It does
 /// nothing while learning is off.
 @MainActor public final class ActivityRecorder {
-    private static let chromeID = "com.google.Chrome"
     private static let siteCheck: TimeInterval = 30
 
     private let log: ActivityLog
-    private let chrome: ChromeTabsSource
+    private let browsers: [BrowserTabsSource]
     private let isOn: @MainActor () -> Bool
     private var observer: (any NSObjectProtocol)?
     private var timer: Timer?
@@ -17,9 +16,9 @@ import HarkCore
     private var lastAppAt = Date.distantPast
     private var lastSite = ""
 
-    public init(log: ActivityLog, chrome: ChromeTabsSource, isOn: @escaping @MainActor () -> Bool) {
+    public init(log: ActivityLog, browsers: [BrowserTabsSource], isOn: @escaping @MainActor () -> Bool) {
         self.log = log
-        self.chrome = chrome
+        self.browsers = browsers
         self.isOn = isOn
     }
 
@@ -56,18 +55,19 @@ import HarkCore
         }
         lastApp = name
         lastAppAt = now
-        // Coming back to Chrome counts as a new visit to whatever site is showing.
+        // Coming back to a browser counts as a new visit to whatever site is showing.
         lastSite = ""
-        if app.bundleIdentifier == Self.chromeID {
-            // Give Chrome a moment to show the tab that was in front.
+        if browsers.contains(where: { $0.bundleID == app.bundleIdentifier }) {
+            // Give the browser a moment to show the tab that was in front.
             Task { try? await Task.sleep(for: .seconds(1.5)); checkSite() }
         }
     }
 
     private func checkSite() {
-        guard isOn(), NSWorkspace.shared.frontmostApplication?.bundleIdentifier == Self.chromeID else { return }
+        guard isOn(), let front = NSWorkspace.shared.frontmostApplication?.bundleIdentifier,
+              let browser = browsers.first(where: { $0.bundleID == front }) else { return }
         Task {
-            guard let host = await chrome.frontSite(), host != lastSite else { return }
+            guard let host = await browser.frontSite(), host != lastSite else { return }
             lastSite = host
             log.append(ActivityEvent(at: Date(), kind: .site, name: host))
         }

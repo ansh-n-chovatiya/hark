@@ -59,7 +59,7 @@ private struct PermissionRow: View {
         switch status {
         case .granted: StatusLabel(text: "Allowed", symbol: "checkmark.circle.fill", tint: .green)
         case .denied, .notAsked: StatusLabel(text: "Needed", symbol: "exclamationmark.triangle.fill", tint: .orange)
-        case .unknown: StatusLabel(text: "Open Chrome to check", symbol: "questionmark.circle", tint: .secondary)
+        case .unknown: StatusLabel(text: "Open your browser to check", symbol: "questionmark.circle", tint: .secondary)
         case nil: StatusLabel(text: "Checking", symbol: "ellipsis.circle", tint: .secondary)
         }
     }
@@ -68,7 +68,7 @@ private struct PermissionRow: View {
         switch permission {
         case .microphone: "Microphone"
         case .accessibility: "Accessibility"
-        case .automation: "Control of Google Chrome"
+        case .automation: "Control of your browser"
         }
     }
 
@@ -76,7 +76,7 @@ private struct PermissionRow: View {
         switch permission {
         case .microphone: "To hear you while you hold the key."
         case .accessibility: "To notice the key, switch windows and use menus."
-        case .automation: "To find and switch your Chrome tabs."
+        case .automation: "To find and switch your browser tabs."
         }
     }
 

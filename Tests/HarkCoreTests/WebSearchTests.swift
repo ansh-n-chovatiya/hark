@@ -3,7 +3,8 @@ import Testing
 @testable import HarkCore
 
 @Suite struct WebSearchTests {
-    private func query(_ text: String) -> String? { WebSearch.request(in: text)?.query }
+    private let browsers: Set<String> = ["browser", "chrome", "zephyr"]
+    private func query(_ text: String) -> String? { WebSearch.request(in: text, browserWords: browsers)?.query }
 
     @Test func searchOnGoogleTakesOffTheWebWords() {
         #expect(query("Search Shadow Khan on the Google.") == "shadow khan")
@@ -16,10 +17,14 @@ import Testing
         #expect(query("Look up the capital of Peru") == "the capital of peru")
     }
 
-    @Test func openChromeAndSearchOpensInChrome() throws {
-        let request = try #require(WebSearch.request(in: "Open Chrome and search Jantar Mantar in new tab."))
+    @Test func aNamedBrowserOpensTheSearch() throws {
+        let request = try #require(WebSearch.request(in: "Open Zephyr and search Jantar Mantar in new tab.", browserWords: browsers))
         #expect(request.query == "jantar mantar")
-        #expect(request.inChrome)
+        #expect(request.browser == "zephyr")
+        let after = try #require(WebSearch.request(in: "search the weather in Pune in zephyr", browserWords: browsers))
+        #expect(after.query == "the weather in pune")
+        #expect(after.browser == "zephyr")
+        #expect(WebSearch.request(in: "search the weather on google", browserWords: browsers)?.browser == nil)
         #expect(request.address?.absoluteString == "https://www.google.com/search?q=jantar%20mantar")
     }
 
