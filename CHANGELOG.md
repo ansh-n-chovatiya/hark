@@ -4,7 +4,7 @@ All notable changes are written here, newest first. Versions follow
 [Semantic Versioning](https://semver.org); while Hark is below 1.0, a minor bump may change
 behaviour.
 
-## Unreleased
+## 0.2.4 — 2026-10-11
 
 - "New tab" and "open new Warp tab" now act in the app in front or the app named (File > New Terminal Tab), not always in
   Chrome. In a terminal only a new tab or window is chosen from the menus (no keys are sent). A greyed-out best match
