@@ -316,6 +316,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let detail = others.isEmpty ? nil : others.joined(separator: " \u{00B7} ").prefix(1).uppercased()
                 + others.joined(separator: " \u{00B7} ").dropFirst()
             menuBar?.setStatus("Hold \(Self.spokenName(ofKey: key)) to speak", detail: detail)
+            if !config.welcomed {
+                // The first run: say how to start, once, with a first thing to try.
+                var changed = config
+                changed.welcomed = true
+                config = changed
+                try? ConfigStore.save(changed)
+                overlay.show(.answer("Welcome to Hark. Hold \(Self.spokenName(ofKey: key)), say \u{201C}open Notes\u{201D}, then let go. Say \u{201C}what can I say\u{201D} any time for more."))
+            }
         } catch {
             logger.error("key not ready: \(error.localizedDescription, privacy: .public)")
             menuBar?.setStatus(error.localizedDescription)

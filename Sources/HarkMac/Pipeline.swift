@@ -249,6 +249,84 @@ public actor Pipeline {
 
     private var watching = 0
 
+    /// Calendar questions, from the calendar on this Mac. Read-only; joining a meeting asks first.
+    private func handle(_ command: CalendarCommand) async -> Outcome {
+        let now = Date()
+        let clock = DateFormatter()
+        clock.timeStyle = .short
+        clock.dateStyle = .none
+        func minutes(until date: Date) -> String {
+            let gap = Int(date.timeIntervalSince(now) / 60)
+            return gap <= 0 ? "now" : gap < 90 ? "in \(gap) min" : "at \(clock.string(from: date))"
+        }
+        do {
+            switch command {
+            case .next, .join, .getReady:
+                let upcoming = try await CalendarReader.shared.events(from: now.addingTimeInterval(-10 * 60), to: now.addingTimeInterval(24 * 3600))
+                    .filter { !$0.isAllDay && $0.end > now }
+                guard let event = (command == .next ? upcoming.first : upcoming.first { $0.link != nil }) ?? upcoming.first else {
+                    return .answer("Nothing is coming up in the next day.")
+                }
+                if command == .next { return .answer("\(event.title), \(minutes(until: event.start)) (\(clock.string(from: event.start)))") }
+                guard let link = event.link else { return .answer("\(event.title) has no link to join.") }
+                if dryRun { return .done("Would: ask, then join \(event.title)") }
+                pending = .later { [link] in
+                    await MainActor.run { _ = NSWorkspace.shared.open(link) }
+                    return .done("Joining \(event.title)")
+                }
+                return .confirm("Join \(event.title), \(clock.string(from: event.start))?")
+            case .today:
+                let start = Calendar.current.startOfDay(for: now)
+                let day = try await CalendarReader.shared.events(from: start, to: start.addingTimeInterval(24 * 3600))
+                    .filter { !$0.isAllDay && $0.end > now }
+                guard !day.isEmpty else { return .answer("Nothing left on your calendar today.") }
+                return .answer(day.prefix(5).map { "\(clock.string(from: $0.start)) \($0.title)" }.joined(separator: " \u{00B7} "))
+            case .free(let hour, let minute):
+                var parts = Calendar.current.dateComponents([.year, .month, .day], from: now)
+                parts.hour = hour
+                parts.minute = minute
+                guard let moment = Calendar.current.date(from: parts) else { return .notUnderstood("I did not catch the time") }
+                let around = try await CalendarReader.shared.events(from: moment.addingTimeInterval(-1), to: moment.addingTimeInterval(60))
+                    .filter { !$0.isAllDay && $0.start <= moment && $0.end > moment }
+                return .answer(around.first.map { "Busy at \(clock.string(from: moment)): \($0.title)" } ?? "You are free at \(clock.string(from: moment)).")
+            }
+        } catch {
+            return .failed(error.localizedDescription)
+        }
+    }
+
+
+    /// A countdown kept while Hark runs.
+    private func startTimer(_ timer: TimerCommand) -> Outcome {
+        guard watching < 5 else { return .notUnderstood("Already keeping five timers. Wait for one to finish") }
+        let words = timer.spoken
+        if dryRun { return .done("Would: start a timer for \(words)") }
+        watching += 1
+        let announce = announce
+        let said = timer.label.map { "\($0) \u{2014} \(words) are up" } ?? "\(words) timer is up"
+        Task { [self] in
+            try? await Task.sleep(for: .seconds(timer.seconds))
+            stoppedWatching()
+            await announce?(said.prefix(1).uppercased() + said.dropFirst())
+        }
+        return .done("Timer set for \(words)")
+    }
+
+    /// "Focus on shop": the windows and tabs whose titles name the project come forward. Nil when nothing is named that,
+    /// so the words may still mean something else.
+    private func focus(on project: String) async -> Outcome? {
+        let wanted = AppAction.tokens(project)
+        guard !wanted.isEmpty else { return nil }
+        let matches = await openItems().filter { $0.kind == .window || $0.kind == .tab }.filter { containsRun(AppAction.tokens($0.title), wanted) }
+        guard !matches.isEmpty else { return nil }
+        if dryRun { return .done("Would: bring forward \(matches.count) window\(matches.count == 1 ? "" : "s") and tabs for \(project)") }
+        var brought = 0
+        for item in matches.prefix(8) {
+            if case .done = await act(.open, on: item, asking: false) { brought += 1 }
+        }
+        return .done("Brought forward \(brought) for \(project)")
+    }
+
     /// Local servers, from the system's own tables: nothing is run.
     private func handle(_ command: PortCommand) async -> Outcome {
         switch command {
@@ -345,6 +423,10 @@ public actor Pipeline {
         if nesting == 0, Routines.find(in: transcript, among: routines) == nil, let port = PortCommand.parse(transcript) {
             return await handle(port)
         }
+        if nesting == 0, let answer = Calculator.answer(transcript) { return .answer(answer) }
+        if nesting == 0, let calendar = CalendarCommand.parse(transcript) { return await handle(calendar) }
+        if nesting == 0, let timer = TimerCommand.parse(transcript) { return startTimer(timer) }
+        if nesting == 0, let project = FocusCommand.project(in: transcript), let done = await focus(on: project) { return done }
         var timings = Timings(
             at: Date(), raw: transcript, verb: nil, outcome: "", transcribeMs: transcribeMs,
             parseMs: 0, matchMs: 0, actMs: 0, totalMs: 0)

@@ -56,6 +56,12 @@ If it isn't sure which of several things you meant, it shows a numbered list. Pr
 | Copy and paste | "Copy the address of this tab" · "Paste the token I copied from the backend" |
 | Save a workspace | "Save this setup as morning" → later, just say "morning" |
 | Undo | "Undo that" |
+| Local servers | "What's on 3000" · "Open localhost 5173" · "Tell me when 3000 is up" |
+| Calendar (read-only) | "What's next" · "What's my day look like" · "Am I free at three" · "Join my next meeting" (asks first) |
+| Quick answers | "What is 18 percent of 240" · "How many kilometres is 26 miles" · "Set a 10 minute timer" |
+| Understand itself | "Why did you do that" · "That was wrong" · "Remember that as ..." · "What can I say" |
+| Edit what you dictated | "Scratch that" · "Change their to there" · "Select last word" |
+| Focus a project | "Focus on shop" (brings forward its windows and tabs) |
 | Repeat | "Do that again" · "No, the other one" |
 
 "This tab", "this app" and "that window" mean the one in front of you. Hark remembers your last three commands.

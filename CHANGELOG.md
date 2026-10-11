@@ -4,6 +4,15 @@ All notable changes are written here, newest first. Versions follow
 [Semantic Versioning](https://semver.org); while Hark is below 1.0, a minor bump may change
 behaviour.
 
+## 0.3.0 — 2026-10-11
+
+- Calendar, read-only: "what's next", "what's my day look like", "am I free at three", and "join my next meeting" (asks first,
+  opens the link found in the event). macOS asks for Calendars access on first use; event titles never reach a model.
+- Quick answers with no model: percentages, sums ("12 times 7") and unit conversions ("how many kilometres is 26 miles").
+- Timers and reminders: "set a 10 minute timer", "remind me in 20 minutes to check the oven" (kept while Hark runs).
+- "Focus on shop" brings forward the windows and tabs whose titles name that project.
+- A short welcome on first launch, and "what can I say" from the menu.
+
 ## 0.2.19 — 2026-10-11
 
 - Local servers, answered from the system's own tables with no terminal: "what's on 3000", "what's running", "open localhost

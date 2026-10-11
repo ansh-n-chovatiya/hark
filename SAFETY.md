@@ -185,3 +185,13 @@ completely: with it off the tool is not offered and "run a script" is refused as
 "Scratch that", "change X to Y" and the cursor words act only on text Hark typed that is still exactly where it was left
 (the text just before the cursor is read and compared first; if it differs, nothing is changed), or on the current
 selection. They send arrows, select-all and Delete on a selection, never Return, and never in a password box or terminal.
+
+## Calendar, ports and timers
+
+- **Calendar** is read-only (EventKit). macOS asks for Calendars access the first time you ask a calendar question; Hark
+  never creates, changes or accepts anything. Event titles are shown on screen and never sent to a model. "Join my next
+  meeting" opens the link in the event only after you say yes, and the link comes from your own calendar entry.
+- **Ports** ("what's on 3000") are read from the system's process and socket tables. Nothing is run, and nothing is killed.
+- **Timers** are kept in memory while Hark runs and are announced on screen; they do not survive quitting Hark.
+- **Quick answers** (sums, percentages, unit conversions) are worked out on this Mac with no model.
+

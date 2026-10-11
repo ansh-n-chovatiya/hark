@@ -21,10 +21,11 @@ cat > "$app/Contents/Info.plist" <<'PLIST'
   <key>CFBundleExecutable</key><string>hark</string>
   <key>CFBundleIconFile</key><string>Hark</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>0.2.19</string>
-  <key>CFBundleVersion</key><string>21</string>
+  <key>CFBundleShortVersionString</key><string>0.3.0</string>
+  <key>CFBundleVersion</key><string>22</string>
   <key>LSMinimumSystemVersion</key><string>26.0</string>
   <key>LSUIElement</key><true/>
+  <key>NSCalendarsFullAccessUsageDescription</key><string>Hark reads your calendar, only when you ask, to tell you what is next and to join a meeting. It never changes it.</string>
   <key>NSMicrophoneUsageDescription</key><string>Hark listens while you hold its key so it can hear your command.</string>
   <key>NSSpeechRecognitionUsageDescription</key><string>Hark turns your spoken command into text on this Mac.</string>
   <key>NSAppleEventsUsageDescription</key><string>Hark reads and switches your browser tabs.</string>

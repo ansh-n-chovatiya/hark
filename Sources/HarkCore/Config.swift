@@ -49,6 +49,8 @@ public struct Config: Codable, Sendable, Equatable {
     /// Keeps everything on this Mac: no online model, no AI tool, no review of failed commands, and no fetching a
     /// site's search page. Off unless the user turns it on.
     public var offlineOnly: Bool
+    /// Set once the first-run welcome has been shown.
+    public var welcomed: Bool
     /// Spoken punctuation in dictation ("comma", "full stop", "question mark") and casing words ("capital", "all caps").
     public var spokenPunctuation: Bool
     /// Words and names the speech recogniser should expect, added by voice ("learn the word ...") or by hand.
@@ -97,6 +99,7 @@ public struct Config: Codable, Sendable, Equatable {
         learns: Bool = true,
         terminalApps: [String] = [],
         offlineOnly: Bool = false,
+        welcomed: Bool = false,
         spokenPunctuation: Bool = true,
         vocabulary: [String] = [],
         terminalCommands: Bool = true,
@@ -125,6 +128,7 @@ public struct Config: Codable, Sendable, Equatable {
         self.learns = learns
         self.terminalApps = terminalApps
         self.offlineOnly = offlineOnly
+        self.welcomed = welcomed
         self.spokenPunctuation = spokenPunctuation
         self.vocabulary = vocabulary
         self.terminalCommands = terminalCommands
@@ -158,6 +162,7 @@ public struct Config: Codable, Sendable, Equatable {
         learns = try values.decodeIfPresent(Bool.self, forKey: .learns) ?? defaults.learns
         terminalApps = try values.decodeIfPresent([String].self, forKey: .terminalApps) ?? defaults.terminalApps
         offlineOnly = try values.decodeIfPresent(Bool.self, forKey: .offlineOnly) ?? defaults.offlineOnly
+        welcomed = try values.decodeIfPresent(Bool.self, forKey: .welcomed) ?? defaults.welcomed
         spokenPunctuation = try values.decodeIfPresent(Bool.self, forKey: .spokenPunctuation) ?? defaults.spokenPunctuation
         vocabulary = try values.decodeIfPresent([String].self, forKey: .vocabulary) ?? defaults.vocabulary
         terminalCommands = try values.decodeIfPresent(Bool.self, forKey: .terminalCommands) ?? defaults.terminalCommands
