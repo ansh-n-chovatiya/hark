@@ -4,6 +4,12 @@ All notable changes are written here, newest first. Versions follow
 [Semantic Versioning](https://semver.org); while Hark is below 1.0, a minor bump may change
 behaviour.
 
+## 0.2.8 — 2026-10-11
+
+- "Open Warp's settings" no longer stops with "Hark can't use a terminal's menus" when a model chooses the item: in a
+  terminal a model may choose a new tab or window and items in the app's own first menu (settings, about), the same as
+  the rules.
+
 ## 0.2.7 — 2026-10-11
 
 - No browser, app or website is named in Hark's rules any more; they are read from the Mac:

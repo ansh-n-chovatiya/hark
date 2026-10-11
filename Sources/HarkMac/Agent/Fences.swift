@@ -48,7 +48,8 @@ final class Fences: Sendable {
                 switch tool.spec.name {
                 case "open_url": try allow(address: arguments["url"]?.string)
                 case "new_tab": try allow(address: arguments["address"]?.string.flatMap { webAddress(for: $0)?.absoluteString })
-                case "click_menu", "list_menu": try refuseTerminal(arguments["app"]?.string)
+                case "list_menu": break
+                case "click_menu": try refuseTerminal(arguments["app"]?.string, path: arguments["path"]?.array?.compactMap(\.string))
                 case "set_field": try allow(typing: arguments["text"]?.string)
                 case "open_path":
                     try allow(file: (arguments["path"]?.string).map { URL(fileURLWithPath: $0).lastPathComponent })
@@ -98,10 +99,14 @@ final class Fences: Sendable {
         throw FenceError(message: "Hark does not act on itself.")
     }
 
-    /// A terminal's menus can run things, so the model gets no way into one.
-    private func refuseTerminal(_ app: String?) throws {
+    /// A terminal's Edit and Shell-like menus act on what is typed there, so the model gets only a new tab or window
+    /// and the app's own first menu (settings, about): a menu click sends no keys.
+    private func refuseTerminal(_ app: String?, path: [String]?) throws {
         let name = (app ?? "").lowercased()
-        guard !AppNames.isTerminal(named: name) else {
+        let words = AppAction.tokens(path?.last ?? "")
+        let harmless = words.starts(with: ["new"]) && ["tab", "window"].contains(words.last ?? "")
+            || AppAction.tokens(path?.first ?? "") == AppAction.tokens(name)
+        guard !AppNames.isTerminal(named: name) || harmless else {
             throw FenceError(message: "Hark does not use a terminal's menus.")
         }
     }
