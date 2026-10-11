@@ -84,7 +84,10 @@ public enum AppAction {
     public static func exact(_ phrase: String, among paths: [[String]]) -> [String]? {
         let ranked = rank(phrase, among: paths)
         guard let best = ranked.first, best.score >= 0.95 else { return nil }
-        return ranked.dropFirst().contains { $0.score >= 0.95 } ? nil : best.path
+        let fits = ranked.filter { $0.score >= 0.95 }.map(\.path)
+        // A submenu repeating its parent's name ("Settings… > Settings") is the same choice: the outer one stands.
+        let outer = fits.filter { path in !fits.contains { $0.count < path.count && Array(path.prefix($0.count)) == $0 } }
+        return outer.count == 1 ? outer.first : nil
     }
 
     public enum LabelChoice: Sendable, Equatable {

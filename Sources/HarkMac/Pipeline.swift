@@ -72,6 +72,10 @@ public actor Pipeline {
         Do what was asked by calling tools. Do not ask questions and do not add commentary.
         - Refer to things by the ids in the list. If the user names an app, act on the app itself, \
         not one of its windows or tabs, unless they say window or tab.
+        - When the user names no app or site ("open settings", "preferences", "new tab", "search for X"), \
+        the request is about what is open: first the app in front and its menu items listed below, then \
+        its window and tabs, and only then other apps, files or the web. A search that names a site \
+        ("youtube search X") is searched on that site, not on a general search engine.
         - A project or repo means a folder or an editor window, not a browser tab.
         - A name that sounds like an app, window or tab in the list means that one. Open a file \
         only when the user asked for a file or folder or said most of its name; never because \
@@ -234,6 +238,11 @@ public actor Pipeline {
         } else if asksToRunAScript(transcript) {
             outcome = .notUnderstood(
                 "Hark runs a script only as a routine. Add it once in Settings under Routines, then say its name.")
+        } else if let site = SiteSearch.request(in: asked.command, openHosts: await openSiteHosts()),
+                  site.address != nil {
+            // A search that names a site is run on that site: the words said say where, so no model is asked.
+            timings.verb = "siteSearch"
+            outcome = await timed(&timings.actMs) { await searchSite(site) }
         } else if let search = WebSearch.request(in: asked.command) {
             // A web search needs no model: the address is built from the words that were said.
             timings.verb = "search"
@@ -243,6 +252,9 @@ public actor Pipeline {
             timings.verb = "system"
             outcome = await timed(&timings.actMs) { await runSystem(system) }
         } else if let moves = WindowLayout.request(in: asked.command), let done = await runLayout(moves, timings: &timings) {
+            outcome = done
+        } else if let done = await frontContext(asked.command) {
+            timings.verb = "frontAction"
             outcome = done
         } else if let done = await appAction(asked.command, timings: &timings) {
             outcome = done
@@ -593,9 +605,9 @@ public actor Pipeline {
     }
 
     /// `strict` takes only a menu item whose title is what was said, and not when it was said as "open ...".
-    private func frontMenuAction(_ transcript: String, strict: Bool) async -> Outcome? {
-        guard let request = FrontAction.request(in: transcript), !(strict && request.opensSomething),
-              let app = await frontApp(allowingTerminal: Self.opensTabOrWindow(request.phrase)),
+    private func frontMenuAction(_ transcript: String, strict: Bool, allowOpening: Bool = false) async -> Outcome? {
+        guard let request = FrontAction.request(in: transcript), !(strict && request.opensSomething && !allowOpening),
+              let app = await frontApp(allowingTerminal: true),
               let appName = app.localizedName,
               let entries = try? AppMenus.entries(of: app.processIdentifier, appName: appName), !entries.isEmpty
         else { return nil }
@@ -612,7 +624,24 @@ public actor Pipeline {
         let arguments: JSONValue = .object(["app": .string(appName), "path": .array(chosen.map(JSONValue.string))])
         // Closing and quitting have their own rules, which ask first.
         guard !ClickMenuTool.closesOrQuits(chosen) else { return nil }
+        // In a terminal only a new tab or window and the app's own menu (its settings, about) are chosen: a menu
+        // click sends no keys, but Edit, Shell and the like act on what is typed there.
+        if KeySafety.isTerminal(app), !Self.opensTabOrWindow(request.phrase), chosen.first != appName { return nil }
         return await chooseMenuItem(chosen, in: appName, with: ClickMenuTool(), arguments: arguments)
+    }
+
+    /// A phrase that names no app or site ("open settings", "preferences") is first taken to be about what is
+    /// open: the front app's own menu is tried before the apps and files of the whole Mac. A phrase that is
+    /// exactly the name of an app or an open window or tab is left to the rules for those.
+    private func frontContext(_ transcript: String) async -> Outcome? {
+        guard let request = FrontAction.request(in: transcript), AppAction.tokens(request.phrase).count <= 4 else { return nil }
+        let wanted = AppAction.tokens(request.phrase)
+        guard await !namesAnApp(request.phrase) else { return nil }
+        guard await !openItems().contains(where: { $0.kind != .app && AppAction.tokens($0.title) == wanted }) else { return nil }
+        let started = clock.now
+        let outcome = await frontMenuAction(transcript, strict: true, allowOpening: true)
+        if outcome != nil { lastContextMs = milliseconds(since: started) }
+        return outcome
     }
 
     private func frontWindowAction(_ transcript: String) async -> Outcome? {
@@ -692,6 +721,23 @@ public actor Pipeline {
             let result = try await tool.call(arguments)
             if let step = result.undo { undo.push(step) }
             return .done(result.summary ?? result.output)
+        } catch {
+            return .failed(error.localizedDescription)
+        }
+    }
+
+    private var lastContextMs = 0.0
+
+    private func openSiteHosts() async -> [String] {
+        await openItems().filter { $0.kind == .tab }.compactMap { URL(string: $0.payload["url"] ?? "")?.host() }
+    }
+
+    private func searchSite(_ request: SiteSearchRequest) async -> Outcome {
+        guard let address = request.address else { return .notUnderstood("I could not build that search") }
+        if dryRun { return .done("Would: Search \(request.site) for \u{201C}\(request.query)\u{201D} [\(address.absoluteString)]") }
+        do {
+            _ = try await OpenAddressTool().call(.object(["url": .string(address.absoluteString)]))
+            return .done("Searched \(request.site) for \u{201C}\(request.query)\u{201D}")
         } catch {
             return .failed(error.localizedDescription)
         }
@@ -835,7 +881,8 @@ public actor Pipeline {
             return await timed(&timings.actMs) { await closeDuplicateTabs() }
         case .newTab:
             // A bare "new tab" belongs to the app in front; only a browser (or nothing it can use) gets a web tab.
-            if command.query.isEmpty, await frontAppIsNotChrome(),
+            let namesBrowser = !Set(AppAction.tokens(command.raw)).isDisjoint(with: ["chrome", "browser", "web", "website"])
+            if command.query.isEmpty, !namesBrowser, await frontAppIsNotChrome(),
                let done = await frontMenuAction("new tab", strict: false) { return done }
             return await timed(&timings.actMs) { await openNewTab(command.query) }
         case .save:
@@ -1048,6 +1095,19 @@ public actor Pipeline {
         ] + ScreenTools.all() + (routines.isEmpty ? [] : [routine])
     }
 
+    /// What the app in front can do, from its own menu bar, for the model: so a vague request is judged against it.
+    private func frontMenuSummary() async -> String {
+        guard let app = await frontApp(allowingTerminal: true), let name = app.localizedName,
+              let entries = try? AppMenus.entries(of: app.processIdentifier, appName: name) else { return "" }
+        let skip: Set<String> = ["Apple", "Window", "Help", "Services"]
+        let titles = entries.filter { $0.enabled && !skip.contains($0.path.first ?? "") }
+            .map { $0.path.joined(separator: " > ") }
+        guard !titles.isEmpty else { return "" }
+        return "Menu items of \(name), usable with click_menu: \(titles.prefix(Self.menuItemsForModel).joined(separator: "; ")).\n"
+    }
+
+    private static let menuItemsForModel = 120
+
     private func describeDesk(on desk: Desk) async -> String {
         let open = await openItems()
         let front = open.first { $0.kind == .app && $0.lastUsed != nil }?.title
@@ -1062,7 +1122,9 @@ public actor Pipeline {
         // The user's own words for things, which also catch names the recogniser keeps mishearing.
         let names = ownNames.sorted { $0.key < $1.key }.map { "\"\($0.key)\" means \"\($0.value)\"" }
         let chores = routines.map { "\"\($0.name)\"" }
+        let menus = await frontMenuSummary()
         return (front.map { "The app in front is \($0).\n" } ?? "")
+            + menus
             + (names.isEmpty ? "" : "The user's own names: \(names.joined(separator: "; ")).\n")
             + (chores.isEmpty ? "" : "The user's routines, for run_routine: \(chores.joined(separator: ", ")).\n")
             + (links.isEmpty ? "" : "The user's saved links, for open_link: \(links.keys.sorted().map { "\"\($0)\"" }.joined(separator: ", ")).\n")
