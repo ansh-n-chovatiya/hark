@@ -67,7 +67,7 @@ public actor Pipeline {
 
     // macOS calls an app by its own short name ("Code"), which nobody says aloud: the other ways to say an app's
     // name are read from the installed apps.
-    private static let builtInAliases = AppNames.aliases()
+    private static var builtInAliases: [String: String] { AppNames.aliases() }
 
     private static let instructions = """
         You are Hark, a voice assistant that controls the user's Mac. You are given what the user \

@@ -19,7 +19,10 @@ struct InstalledApp: Sendable {
 }
 
 enum AppNames {
-    static let installed: [InstalledApp] = scan()
+    private static let scanned: [InstalledApp] = scan()
+    /// A made-up Mac for the evaluation, which runs where the real apps are not installed.
+    nonisolated(unsafe) static var pretended: [InstalledApp]?
+    static var installed: [InstalledApp] { pretended ?? scanned }
 
     private static func scan() -> [InstalledApp] {
         let home = FileManager.default.homeDirectoryForCurrentUser.path

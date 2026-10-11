@@ -33,6 +33,10 @@ public struct Evaluation: Codable, Sendable {
 
     var desk: [Thing]
     var folders: [String]
+    /// The apps installed on the made-up Mac, as the name on disk and the app's own name ("Visual Studio Code" and
+    /// "Code"), from which the other ways to say a name are worked out.
+    var installedApps: [InstalledName]?
+    struct InstalledName: Codable, Sendable { var folderName: String; var shortName: String }
     /// Saved web pages by name, for cases about opening one.
     var links: [String: String]?
     var cases: [Case]
@@ -45,6 +49,12 @@ public struct Evaluation: Codable, Sendable {
     public func run(
         config: Config, pause: Duration, progress: @Sendable (Result) -> Void
     ) async -> [Result] {
+        AppNames.pretended = installedApps.map { apps in
+            apps.map { InstalledApp(
+                url: URL(fileURLWithPath: "/Applications/\($0.folderName).app"), bundleID: nil, folderName: $0.folderName,
+                shortName: $0.shortName, category: nil, opensFolders: false, runsPrograms: false) }
+        }
+        defer { AppNames.pretended = nil }
         var settings = config
         settings.searchFolders = folders
         settings.repos = []

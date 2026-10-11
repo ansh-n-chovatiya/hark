@@ -1,4 +1,14 @@
 {
+ "installedApps": [
+  {
+   "folderName": "Visual Studio Code",
+   "shortName": "Code"
+  },
+  {
+   "folderName": "Google Chrome",
+   "shortName": "Chrome"
+  }
+ ],
  "desk": [
   {
    "kind": "app",
