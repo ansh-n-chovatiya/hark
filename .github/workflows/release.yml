@@ -20,7 +20,7 @@ jobs:
       - run: scripts/sbom.sh
       # Anyone can check that this zip was built by this workflow from this commit:
       #   gh attestation verify hark-source.zip --repo <owner>/hark
-      - uses: actions/attest-build-provenance@v2
+      - uses: actions/attest-build-provenance@v4
         with:
           subject-path: build/hark-source.zip
       - uses: softprops/action-gh-release@v2
