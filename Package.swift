@@ -7,7 +7,7 @@ let package = Package(
     dependencies: [
         // Runs the Parakeet speech model on this Mac. Apple's own recogniser misheard names and
         // accents too often (decision 0009).
-        .package(url: "https://github.com/FluidInference/FluidAudio.git", exact: "0.17.7"),
+        .package(url: "https://github.com/FluidInference/FluidAudio.git", exact: "0.18.2"),
     ],
     targets: [
         .target(name: "HarkCore"),
